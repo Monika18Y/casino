@@ -7,6 +7,9 @@ import DepositPage from '../views/Deposit.vue'
 import LuckyThree from '../views/games/card/LuckyThree.vue'
 import DragonTiger from '../views/games/card/DragonTiger.vue'
 import FishingGame from '@/views/games/fun/Fishing.vue'
+import Blackjack from '@/views/games/card/Blackjack.vue'
+import BettingHistory from '../views/BettingHistory.vue'
+import RouletteGame from '@/views/games/live/Roulette.vue'
 
 const routes = [
   {
@@ -52,6 +55,24 @@ const routes = [
     path: '/games/fun/fishing',
     name: 'FishingGame',
     component: FishingGame,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/games/card/blackjack',
+    name: 'Blackjack',
+    component: Blackjack,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/betting-history',
+    name: 'BettingHistory',
+    component: BettingHistory,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/games/live/roulette',
+    name: 'Roulette',
+    component: RouletteGame,
     meta: { requiresAuth: true }
   }
 ]

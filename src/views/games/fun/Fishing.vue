@@ -16,7 +16,7 @@
             <span class="balance-label">余额</span>
             <span class="balance-amount">￥{{ userBalance }}</span>
           </div>
-          <router-link to="/games">返回游戏大厅</router-link>
+          <a @click="goToGameCenter">返回游戏大厅</a>
         </div>
       </nav>
     </header>
@@ -40,9 +40,13 @@
             <span class="value">x{{ bulletMultiplier }}</span>
           </div>
           <div class="info-item">
+            <span class="label">消费金额</span>
+            <span class="value">￥{{ totalCost.toFixed(2) }}</span>
+          </div>
+          <div class="info-item">
             <span class="label">本次盈亏</span>
             <span :class="['value', { 'profit-positive': sessionProfit > 0, 'profit-negative': sessionProfit < 0 }]">
-              {{ sessionProfit > 0 ? '+' : '' }}{{ sessionProfit }}
+              {{ sessionProfit > 0 ? '+' : '' }}{{ sessionProfit.toFixed(2) }}
             </span>
           </div>
         </div>
@@ -179,6 +183,7 @@
 
 <script>
 import { useRouter } from 'vue-router'
+import { addBetHistory } from '@/utils/betHistory'
 
 export default {
   name: 'FishingGame',
@@ -227,7 +232,9 @@ export default {
       autoShootInterval: null,  // 添加自动射击定时器
       lastMouseEvent: null,  // 添加最后鼠标位置记录
       showRotateHint: false,
-      orientationHandler: null
+      orientationHandler: null,
+      totalCost: 0, // 添加消费金额记录
+      isRecordSaved: false, // 添加记录保存状态标记
     }
   },
   methods: {
@@ -332,6 +339,9 @@ export default {
       localStorage.setItem('users', JSON.stringify(users))
       this.userBalance = user.balance
       this.sessionProfit -= shootCost  // 更新盈亏
+
+      // 更新消费金额
+      this.totalCost += this.bulletMultiplier
 
       const rect = event.target.getBoundingClientRect()
       const x = event.clientX - rect.left
@@ -442,7 +452,7 @@ export default {
         id: Date.now(),
         time: new Date().toLocaleTimeString(),
         fishType: fish.emoji,
-        profit: netProfit >= 0 ? `+${netProfit}` : `${netProfit}`
+        profit: netProfit >= 0 ? `+${netProfit.toFixed(2)}` : `${netProfit.toFixed(2)}`
       })
 
       // 限制历史记录数量
@@ -452,7 +462,7 @@ export default {
 
       // 显示捕获成功提示
       const catchRate = (this.catchRates[fish.type] * 100).toFixed(0)
-      const profitText = netProfit >= 0 ? `获得 ￥${winAmount}` : `损失 ￥${-netProfit}`
+      const profitText = netProfit >= 0 ? `获得 ￥${winAmount.toFixed(2)}` : `损失 ￥${(-netProfit).toFixed(2)}`
       this.showMessage(
         `成功捕获${this.getFishName(fish.type)}！(捕获率${catchRate}%) ${profitText}`, 
         'success'
@@ -547,6 +557,26 @@ export default {
       if (!this.gameInterval) {
         this.startGame()
       }
+    },
+
+    // 修改返回游戏大厅方法
+    goToGameCenter() {
+      this.saveGameRecord() // 抽取保存记录逻辑到单独的方法
+      this.router.push('/games')
+    },
+
+    // 新增保存记录方法
+    saveGameRecord() {
+      // 如果有消费且还未保存记录，则保存
+      if (this.totalCost > 0 && !this.isRecordSaved) {
+        addBetHistory({
+          game: 'Fishing',
+          betType: '捕鱼游戏',
+          amount: this.totalCost,
+          profit: this.sessionProfit
+        })
+        this.isRecordSaved = true // 标记已保存
+      }
     }
   },
   mounted() {
@@ -585,6 +615,8 @@ export default {
       window.removeEventListener('resize', this.orientationHandler)
       window.removeEventListener('orientationchange', this.orientationHandler)
     }
+
+    this.saveGameRecord() // 使用相同的方法保存记录
   }
 }
 </script>
@@ -873,6 +905,19 @@ h1 {
     height: calc(100vh - 300px);  /* 调整游戏区域高度 */
     max-height: 500px;
   }
+
+  .game-info {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .info-item .label {
+    font-size: 0.8rem;
+  }
+
+  .info-item .value {
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -906,6 +951,19 @@ h1 {
 
   .cannon-btn {
     padding: 0.8rem;
+  }
+
+  .game-info {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .info-item {
+    padding: 0.5rem 0;
+  }
+
+  .info-item:not(:last-child)::after {
+    display: none;
   }
 }
 

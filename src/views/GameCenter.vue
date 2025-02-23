@@ -62,6 +62,13 @@
 
 <script>
 import { useRouter } from 'vue-router'
+// 导入图片
+import luckyThreeImg from '@/assets/gamelist/lucky-three.jpg'
+import pokerImg from '@/assets/gamelist/poker.jpg'
+import rouletteImg from '@/assets/gamelist/roulette.jpg'
+import dragonTigerImg from '@/assets/gamelist/dragon-tiger.jpg'
+import fishingImg from '@/assets/gamelist/fishing.jpg'
+import blackjackImg from '@/assets/gamelist/blackjack.jpg'
 
 export default {
   name: 'GameCenter',
@@ -85,7 +92,7 @@ export default {
           id: 1,
           name: '幸运快三',
           description: '简单刺激的快三游戏',
-          image: '/images/lucky-three.jpg',
+          image: luckyThreeImg,
           category: 'card',
           players: '3.5k',
           rating: 4.9,
@@ -95,7 +102,7 @@ export default {
           id: 2,
           name: '经典扑克',
           description: '最受欢迎的扑克游戏',
-          image: '/images/poker.jpg',
+          image: pokerImg,
           category: 'card',
           players: '2.3k',
           rating: 4.8
@@ -104,16 +111,17 @@ export default {
           id: 3,
           name: '幸运轮盘',
           description: '刺激的轮盘游戏体验',
-          image: '/images/roulette.jpg',
+          image: rouletteImg,
           category: 'live',
           players: '1.8k',
-          rating: 4.6
+          rating: 4.6,
+          path: '/games/live/roulette'
         },
         {
           id: 4,
           name: '龙虎斗',
           description: '经典龙虎对决',
-          image: '/images/dragon-tiger.jpg',
+          image: dragonTigerImg,
           category: 'card',
           players: '3.5k',
           rating: 4.9,
@@ -123,11 +131,21 @@ export default {
           id: 5,
           name: '智汁捕鱼',
           description: '刺激的捕鱼游戏体验',
-          image: '/images/fishing.jpg',
+          image: fishingImg,
           category: 'fun',
           players: '2.3k',
           rating: 4.8,
           path: '/games/fun/fishing'
+        },
+        {
+          id: 6,
+          name: '21点',
+          description: '简单刺激的21点游戏',
+          image: blackjackImg,
+          category: 'card',
+          players: '3.5k',
+          rating: 4.9,
+          path: '/games/card/blackjack'
         }
       ]
     }

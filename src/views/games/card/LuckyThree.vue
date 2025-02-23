@@ -81,6 +81,36 @@
           </button>
         </div>
 
+        <!-- 修改投注记录板块 -->
+        <div class="bet-history-section">
+          <div class="section-header">
+            <h2>投注记录</h2>
+            <router-link to="/betting-history" class="view-more">
+              查看更多
+              <span class="arrow">→</span>
+            </router-link>
+          </div>
+          <div class="history-list">
+            <div class="history-header">
+              <span>时间</span>
+              <span>投注项</span>
+              <span>金额</span>
+              <span>结果</span>
+            </div>
+            <div v-if="displayHistory.length === 0" class="no-records">
+              暂无投注记录
+            </div>
+            <div v-else v-for="record in displayHistory" :key="record.id" class="history-item">
+              <span class="time">{{ record.time }}</span>
+              <span class="bet-type">{{ record.betType }}</span>
+              <span class="amount">￥{{ record.amount }}</span>
+              <span :class="['result', record.profit > 0 ? 'win' : record.profit < 0 ? 'lose' : 'tie']">
+                {{ record.profit > 0 ? '+' : ''}}{{ record.profit }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div class="history-section">
           <h2>开奖记录</h2>
           <div class="history-list">
@@ -124,6 +154,7 @@
 
 <script>
 import { useRouter } from 'vue-router'
+import { getBetHistory, addBetHistory } from '@/utils/betHistory'
 
 export default {
   name: 'LuckyThree',
@@ -163,6 +194,7 @@ export default {
       ],
       hasBet: false,  // 添加下注状态标记
       messageTimeout: null,  // 添加消息定时器引用
+      betHistory: []
     }
   },
   computed: {
@@ -179,6 +211,9 @@ export default {
         return Array(3).fill(this.rollFrames[this.rollIndex])
       }
       return this.diceNumbers.map(num => require(`@/assets/dice/${num}.png`))
+    },
+    displayHistory() {
+      return this.betHistory.slice(0, 10)
     }
   },
   methods: {
@@ -342,6 +377,19 @@ export default {
         this.userBalance = users[this.username].balance
       }
 
+      // 在结算完成后添加投注记录
+      addBetHistory({
+        game: 'LuckyThree',
+        betType: this.selectedBets.map(id => 
+          this.betOptions.find(opt => opt.id === id)?.name
+        ).join(', '),
+        amount: this.betAmount,
+        profit: totalWin - this.betAmount,
+        numbers: numbers.join(' '), // 添加开奖号码
+        result: sum > 10 ? '大' : '小' // 添加开奖结果
+      })
+      
+      this.betHistory = getBetHistory().filter(record => record.game === 'LuckyThree')
       this.selectedBets = []
     },
     placeBet() {
@@ -373,7 +421,6 @@ export default {
       this.userBalance = users[this.username].balance
 
       this.hasBet = true
-      // 显示详细的下注信息
       const betOptions = this.selectedBets.map(betId => 
         this.betOptions.find(o => o.id === betId).name
       ).join('、')
@@ -395,6 +442,9 @@ export default {
 
     // 开始倒计时
     this.startCountdown()
+
+    // 读取历史记录
+    this.betHistory = getBetHistory().filter(record => record.game === 'LuckyThree')
   },
   beforeUnmount() {
     // 清除所有定时器
@@ -649,100 +699,126 @@ h2 {
   cursor: not-allowed;
 }
 
-.history-section {
-  margin-top: 3rem;
-  background: rgba(0, 0, 0, 0.2);
+.bet-history-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
-  padding: 2rem;
 }
 
-.history-section h2 {
-  color: #00ff88;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  color: #00ff88;
   font-size: 1.4rem;
-  text-align: center;
+}
+
+.view-more {
+  color: #00ff88;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.view-more:hover {
+  transform: translateX(5px);
+}
+
+.view-more .arrow {
+  transition: transform 0.3s ease;
+}
+
+.view-more:hover .arrow {
+  transform: translateX(5px);
 }
 
 .history-list {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .history-header {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-columns: 1fr 2fr 1fr 1fr;
   padding: 1rem;
   background: rgba(0, 255, 136, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   font-weight: bold;
   color: #00ff88;
   text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .history-item {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-columns: 1fr 2fr 1fr 1fr;
   padding: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   transition: background-color 0.3s ease;
-}
-
-.history-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  align-items: center;
+  text-align: center;
 }
 
 .history-item:last-child {
   border-bottom: none;
 }
 
-.period {
-  color: #aaa;
-  text-align: center;
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.numbers {
-  color: #00ff88;
-  text-align: center;
-  font-weight: bold;
+.time {
+  color: #aaa;
+}
+
+.bet-type {
+  color: white;
+}
+
+.amount {
+  color: #aaa;
 }
 
 .result {
-  color: #ff4444;
-  text-align: center;
   font-weight: bold;
 }
 
+.win {
+  color: #00ff88;
+}
+
+.lose {
+  color: #ff4444;
+}
+
+.tie {
+  color: #aaa;
+}
+
+.no-records {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
+}
+
 @media (max-width: 768px) {
-  .game-content {
+  .bet-history-section {
+    margin: 1.5rem 0;
     padding: 1rem;
-  }
-
-  .game-info {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .bet-options {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .history-section {
-    padding: 1.5rem;
   }
 
   .history-header,
   .history-item {
-    padding: 0.8rem;
     font-size: 0.9rem;
+    padding: 0.8rem;
   }
 }
 
 @media (max-width: 480px) {
-  .history-section {
-    padding: 1rem;
-  }
-
   .history-header {
     display: none;
   }
@@ -750,29 +826,28 @@ h2 {
   .history-item {
     grid-template-columns: 1fr;
     gap: 0.5rem;
+    text-align: left;
     padding: 1rem;
-    text-align: center;
   }
 
-  .period::before {
-    content: "期号: ";
+  .time::before {
+    content: "时间: ";
     color: #00ff88;
   }
 
-  .numbers::before {
-    content: "开奖号码: ";
+  .bet-type::before {
+    content: "投注: ";
+    color: #00ff88;
+  }
+
+  .amount::before {
+    content: "金额: ";
     color: #00ff88;
   }
 
   .result::before {
     content: "结果: ";
     color: #00ff88;
-  }
-
-  .period,
-  .numbers,
-  .result {
-    text-align: center;
   }
 }
 

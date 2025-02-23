@@ -65,6 +65,37 @@
           </div>
         </section>
 
+        <!-- 投注记录板块 -->
+        <section class="profile-section">
+          <div class="section-header">
+            <h2>最近投注</h2>
+            <router-link to="/betting-history" class="view-more">
+              查看更多
+              <span class="arrow">→</span>
+            </router-link>
+          </div>
+          
+          <div class="betting-records">
+            <div v-if="recentBets.length === 0" class="no-records">
+              暂无投注记录
+            </div>
+            <div v-else class="records-list">
+              <div v-for="record in recentBets" :key="record.id" class="record-item">
+                <div class="game-info">
+                  <span class="game-name">{{ record.gameName }}</span>
+                  <span class="game-time">{{ record.time }}</span>
+                </div>
+                <div class="bet-info">
+                  <span class="bet-amount">投注: ￥{{ record.betAmount }}</span>
+                  <span :class="['bet-result', record.profit > 0 ? 'profit' : record.profit < 0 ? 'loss' : 'tie']">
+                    {{ record.profit > 0 ? '+' : ''}}{{ record.profit }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <!-- 信息绑定部分 -->
         <section class="profile-section">
           <h2>信息绑定</h2>
@@ -92,6 +123,8 @@
 </template>
 
 <script>
+import { getBetHistory } from '@/utils/betHistory'
+
 export default {
   name: 'UserProfile',
   data() {
@@ -103,7 +136,8 @@ export default {
       isEmailBound: false,
       isBankBound: false,
       depositText: '充值',
-      withdrawText: '提现'
+      withdrawText: '提现',
+      recentBets: [] // 最近三次投注记录
     }
   },
   mounted() {
@@ -113,6 +147,15 @@ export default {
     if (currentUser) {
       this.userBalance = currentUser.balance
     }
+
+    // 获取最近3条投注记录
+    this.recentBets = getBetHistory().slice(0, 3).map(record => ({
+      id: record.id,
+      time: record.time,
+      gameName: this.getGameName(record.game),
+      betAmount: record.amount,
+      profit: record.profit
+    }))
   },
   methods: {
     goToDeposit() {
@@ -129,6 +172,16 @@ export default {
     },
     bindBank() {
       // 实现银行卡绑定逻辑
+    },
+    // 获取游戏名称
+    getGameName(gameCode) {
+      const gameNames = {
+        'LuckyThree': '幸运快三',
+        'DragonTiger': '龙虎斗',
+        'Blackjack': '21点',
+        'Fishing': '捕鱼游戏'
+      }
+      return gameNames[gameCode] || gameCode
     }
   }
 }
@@ -327,5 +380,103 @@ export default {
   .info-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.view-more {
+  color: #00ff88;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.view-more:hover {
+  transform: translateX(5px);
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.view-more:hover .arrow {
+  transform: translateX(3px);
+}
+
+.betting-records {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.no-records {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
+}
+
+.record-item {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease;
+}
+
+.record-item:last-child {
+  border-bottom: none;
+}
+
+.record-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.game-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.game-name {
+  color: white;
+  font-weight: bold;
+}
+
+.game-time {
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.bet-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bet-amount {
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.bet-result {
+  font-weight: bold;
+}
+
+.profit {
+  color: #00ff88;
+}
+
+.loss {
+  color: #ff4444;
+}
+
+.tie {
+  color: #aaa;
 }
 </style> 

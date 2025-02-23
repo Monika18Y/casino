@@ -87,18 +87,56 @@
           </button>
         </div>
 
+        <!-- 修改投注记录板块 -->
+        <div class="bet-history-section">
+          <div class="section-header">
+            <h2>投注记录</h2>
+            <router-link to="/betting-history" class="view-more">
+              查看更多
+              <span class="arrow">→</span>
+            </router-link>
+          </div>
+          <div class="history-list">
+            <div class="history-header">
+              <span>时间</span>
+              <span>投注项</span>
+              <span>金额</span>
+              <span>结果</span>
+            </div>
+            <div v-if="displayHistory.length === 0" class="no-records">
+              暂无投注记录
+            </div>
+            <div v-else v-for="record in displayHistory" :key="record.id" class="history-item">
+              <span class="time">{{ record.time }}</span>
+              <span class="bet-type">{{ record.betType }}</span>
+              <span class="amount">￥{{ record.amount }}</span>
+              <span :class="['result', record.profit > 0 ? 'win' : record.profit < 0 ? 'lose' : 'tie']">
+                {{ record.profit > 0 ? '+' : ''}}{{ record.profit }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <div class="history-section">
           <h2>开奖记录</h2>
           <div class="history-list">
             <div class="history-header">
               <span>期号</span>
-              <span>牌面</span>
+              <span>龙牌</span>
+              <span>虎牌</span>
               <span>结果</span>
             </div>
             <div v-for="record in history" :key="record.period" class="history-item">
               <span class="period">{{ record.period }}</span>
-              <span class="cards">{{ record.cards }}</span>
-              <span class="result">{{ record.result }}</span>
+              <span class="card-display" :class="getCardColor(record.dragonCard)">
+                {{ formatCard(record.dragonCard) }}
+              </span>
+              <span class="card-display" :class="getCardColor(record.tigerCard)">
+                {{ formatCard(record.tigerCard) }}
+              </span>
+              <span :class="['result', getResultClass(record.result)]">
+                {{ record.result }}
+              </span>
             </div>
           </div>
         </div>
@@ -124,6 +162,7 @@
 
 <script>
 import { useRouter } from 'vue-router'
+import { getBetHistory, addBetHistory } from '@/utils/betHistory'
 
 export default {
   name: 'DragonTiger',
@@ -168,6 +207,7 @@ export default {
         Diamond: '♦'
       },
       messageTimeout: null,
+      betHistory: []
     }
   },
   computed: {
@@ -176,6 +216,9 @@ export default {
              this.betAmount > 0 && 
              !this.isDrawing && 
              !this.hasBet
+    },
+    displayHistory() {
+      return this.betHistory.slice(0, 10)
     }
   },
   methods: {
@@ -247,28 +290,50 @@ export default {
 
     startDrawing() {
       this.isDrawing = true
-      this.drawingText = '开奖中...'
+      this.drawingText = '开奖中'
       
+      // 先显示牌背面
       this.dragonCard = require('@/assets/cards/Back.png')
       this.tigerCard = require('@/assets/cards/Back.png')
       
+      // 延迟2秒后显示结果
       setTimeout(() => {
-        this.drawLottery()
-        this.drawingText = '本局结果'
+        // 生成龙虎牌
+        const dragonSuit = this.suits[Math.floor(Math.random() * this.suits.length)]
+        const tigerSuit = this.suits[Math.floor(Math.random() * this.suits.length)]
+        const dragonNum = Math.floor(Math.random() * 13) + 1
+        const tigerNum = Math.floor(Math.random() * 13) + 1
         
-        this.lastDragonCard = this.dragonCard
-        this.lastTigerCard = this.tigerCard
+        // 更新牌面显示
+        this.dragonCard = require(`@/assets/cards/${dragonSuit}${this.cardNames[dragonNum]}.png`)
+        this.tigerCard = require(`@/assets/cards/${tigerSuit}${this.cardNames[tigerNum]}.png`)
         
-        setTimeout(() => {
-          this.isDrawing = false
-          this.drawingText = ''
-          this.totalSeconds = 10
-          this.currentPeriod = this.generateNextPeriod()
-          this.hasBet = false
-          this.dragonCard = this.lastDragonCard
-          this.tigerCard = this.lastTigerCard
-          this.startCountdown()
-        }, 1000)
+        // 添加到历史记录
+        this.history.unshift({
+          period: this.currentPeriod,
+          dragonCard: `${dragonSuit}${this.cardNames[dragonNum]}`,
+          tigerCard: `${tigerSuit}${this.cardNames[tigerNum]}`,
+          result: dragonNum > tigerNum ? '龙' : dragonNum < tigerNum ? '虎' : '和'
+        })
+        
+        // 只保留最近10条记录
+        if (this.history.length > 10) {
+          this.history.pop()
+        }
+        
+        // 结算
+        this.settleBets(dragonNum, tigerNum)
+        
+        // 重置状态
+        this.isDrawing = false
+        this.hasBet = false
+        this.totalSeconds = 10
+        this.updateCountdownDisplay()
+        this.startCountdown()
+        
+        // 更新期号
+        const nextNum = parseInt(this.currentPeriod.split('-')[1]) + 1
+        this.currentPeriod = `${this.currentPeriod.split('-')[0]}-${nextNum.toString().padStart(3, '0')}`
       }, 2000)
     },
 
@@ -302,37 +367,6 @@ export default {
       this.hasBet = true
       const betOption = this.betOptions.find(o => o.id === this.selectedBets[0])
       this.showMessage(`下注成功！投注 ${betOption.name} ￥${this.betAmount}`, 'success')
-    },
-
-    drawLottery() {
-      const dragonSuit = this.suits[Math.floor(Math.random() * 4)]
-      const tigerSuit = this.suits[Math.floor(Math.random() * 4)]
-      const dragonNum = Math.floor(Math.random() * 13) + 1
-      const tigerNum = Math.floor(Math.random() * 13) + 1
-      
-      this.dragonCard = require(`@/assets/cards/${dragonSuit}${this.cardNames[dragonNum]}.png`)
-      this.tigerCard = require(`@/assets/cards/${tigerSuit}${this.cardNames[tigerNum]}.png`)
-
-      let result
-      if (dragonNum > tigerNum) {
-        result = '龙'
-      } else if (dragonNum < tigerNum) {
-        result = '虎'
-      } else {
-        result = '和'
-      }
-
-      this.history.unshift({
-        period: this.currentPeriod,
-        cards: `龙:${this.getCardDisplay(dragonSuit, dragonNum)} vs 虎:${this.getCardDisplay(tigerSuit, tigerNum)}`,
-        result: result
-      })
-
-      if (this.history.length > 10) {
-        this.history.pop()
-      }
-
-      this.settleBets(dragonNum, tigerNum)
     },
 
     settleBets(dragonNum, tigerNum) {
@@ -370,11 +404,63 @@ export default {
         this.userBalance = users[this.username].balance
       }
 
+      // 在结算完成后添加投注记录
+      let result
+      if (dragonNum > tigerNum) {
+        result = '龙'
+      } else if (dragonNum < tigerNum) {
+        result = '虎'
+      } else {
+        result = '和'
+      }
+
+      // 从当前显示的牌面获取信息
+      const dragonCardSrc = this.dragonCard.split('/').pop().replace('.png', '')
+      const tigerCardSrc = this.tigerCard.split('/').pop().replace('.png', '')
+
+      addBetHistory({
+        game: 'DragonTiger',
+        betType: this.selectedBets.map(id => 
+          this.betOptions.find(opt => opt.id === id)?.name
+        ).join(', '),
+        amount: this.betAmount,
+        profit: totalWin - this.betAmount,
+        dragonCard: dragonCardSrc, // 使用当前显示的牌面
+        tigerCard: tigerCardSrc,   // 使用当前显示的牌面
+        result: result
+      })
+      
+      this.betHistory = getBetHistory().filter(record => record.game === 'DragonTiger')
       this.selectedBets = []
     },
 
     getCardDisplay(suit, num) {
       return `${this.suitSymbols[suit]}${this.cardNames[num]}`
+    },
+
+    getCardColor(card) {
+      if (!card) return ''
+      return card.includes('Heart') || card.includes('Diamond') ? 'red-card' : 'black-card'
+    },
+    
+    formatCard(card) {
+      if (!card) return ''
+      const [suit, rank] = card.split(/(?=[AKQJ0-9])/)
+      const suitEmoji = {
+        'Heart': '♥️',
+        'Diamond': '♦️',
+        'Spade': '♠️',
+        'Club': '♣️'
+      }
+      return `${suitEmoji[suit]}${rank}`
+    },
+    
+    getResultClass(result) {
+      switch(result) {
+        case '龙': return 'dragon-win'
+        case '虎': return 'tiger-win'
+        default: return 'tie-result'
+      }
     }
   },
   mounted() {
@@ -394,6 +480,9 @@ export default {
     this.lastTigerCard = require('@/assets/cards/Back.png')
 
     this.startCountdown()
+
+    // 读取历史记录
+    this.betHistory = getBetHistory().filter(record => record.game === 'DragonTiger')
   },
   beforeUnmount() {
     if (this.countdownInterval) {
@@ -553,7 +642,12 @@ h1 {
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s ease;
+  transition: all 0.5s ease;
+  transform-style: preserve-3d;
+}
+
+.card img.flipping {
+  transform: rotateY(180deg);
 }
 
 .vs {
@@ -629,78 +723,113 @@ h1 {
   color: #1a1a2e;
 }
 
-.history-section {
-  margin-top: 3rem;
-  background: rgba(0, 0, 0, 0.2);
+.bet-history-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
-  padding: 2rem;
 }
 
-.history-section h2 {
-  color: #00ff88;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.5rem;
-  font-size: 1.4rem;
-  text-align: center;
+}
+
+.section-header h2 {
+  margin-bottom: 0;
+}
+
+.view-more {
+  color: #00ff88;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.view-more:hover {
+  transform: translateX(5px);
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.view-more:hover .arrow {
+  transform: translateX(3px);
 }
 
 .history-list {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .history-header {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   padding: 1rem;
   background: rgba(0, 255, 136, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   font-weight: bold;
   color: #00ff88;
   text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .history-item {
   display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   padding: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   transition: background-color 0.3s ease;
-}
-
-.history-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  align-items: center;
+  text-align: center;
 }
 
 .history-item:last-child {
   border-bottom: none;
 }
 
-.period {
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.time {
   color: #aaa;
-  text-align: center;
 }
 
-.cards {
-  color: #00ff88;
-  text-align: center;
-  font-weight: bold;
-}
-
-.cards span[data-suit="heart"],
-.cards span[data-suit="diamond"] {
-  color: #ff4444;
-}
-
-.cards span[data-suit="spade"],
-.cards span[data-suit="club"] {
+.bet-type {
   color: white;
 }
 
+.amount {
+  color: #aaa;
+}
+
 .result {
-  color: #ff4444;
-  text-align: center;
   font-weight: bold;
+}
+
+.win {
+  color: #00ff88;
+}
+
+.lose {
+  color: #ff4444;
+}
+
+.tie {
+  color: #aaa;
+}
+
+.no-records {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
 }
 
 @media (max-width: 768px) {
@@ -726,14 +855,12 @@ h1 {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .history-section {
-    padding: 1.5rem;
+  .section-header {
+    padding: 0 1rem;
   }
 
-  .history-header,
-  .history-item {
-    padding: 0.8rem;
-    font-size: 0.9rem;
+  .view-more {
+    font-size: 0.8rem;
   }
 }
 
@@ -755,10 +882,6 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .history-section {
-    padding: 1rem;
-  }
-
   .history-header {
     display: none;
   }
@@ -766,29 +889,28 @@ h1 {
   .history-item {
     grid-template-columns: 1fr;
     gap: 0.5rem;
+    text-align: left;
     padding: 1rem;
-    text-align: center;
   }
 
-  .period::before {
-    content: "期号: ";
+  .time::before {
+    content: "时间: ";
     color: #00ff88;
   }
 
-  .cards::before {
-    content: "开牌: ";
+  .bet-type::before {
+    content: "投注: ";
+    color: #00ff88;
+  }
+
+  .amount::before {
+    content: "金额: ";
     color: #00ff88;
   }
 
   .result::before {
     content: "结果: ";
     color: #00ff88;
-  }
-
-  .period,
-  .cards,
-  .result {
-    text-align: center;
   }
 }
 
@@ -942,6 +1064,144 @@ h1 {
   .submit-bet {
     margin-top: 1.5rem;
     padding: 0.8rem;
+  }
+}
+
+.history-section {
+  margin-top: 3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+.history-section h2 {
+  color: #00ff88;
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.history-list {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  padding: 1rem;
+  background: rgba(0, 255, 136, 0.1);
+  font-weight: bold;
+  color: #00ff88;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease;
+  align-items: center;
+  text-align: center;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.period {
+  color: #aaa;
+}
+
+.card-display {
+  font-size: 1.2rem;
+  font-weight: bold;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  display: inline-block;
+  min-width: 60px;
+}
+
+.red-card {
+  color: #ff4444;
+}
+
+.black-card {
+  color: white;
+}
+
+.dragon-win {
+  color: #ff4444;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.3);
+}
+
+.tiger-win {
+  color: #00ff88;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+}
+
+.tie-result {
+  color: #ffaa00;
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 170, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .history-section {
+    padding: 1.5rem;
+  }
+
+  .card-display {
+    font-size: 1rem;
+    padding: 0.2rem 0.4rem;
+    min-width: 50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .history-section {
+    padding: 1rem;
+  }
+
+  .history-header {
+    display: none;
+  }
+
+  .history-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1rem;
+  }
+
+  .period::before {
+    content: "期号: ";
+    color: #00ff88;
+  }
+
+  .card-display {
+    width: 100%;
+    margin: 0.2rem 0;
+  }
+
+  .card-display:nth-child(2)::before {
+    content: "龙牌: ";
+    color: #00ff88;
+  }
+
+  .card-display:nth-child(3)::before {
+    content: "虎牌: ";
+    color: #00ff88;
+  }
+
+  .result::before {
+    content: "结果: ";
+    color: #00ff88;
   }
 }
 </style> 
