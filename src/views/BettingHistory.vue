@@ -38,7 +38,7 @@
         </div>
         
         <div v-else class="records-list">
-          <div v-for="record in bettingHistory" :key="record.id" class="record-item">
+          <div v-for="record in paginatedHistory" :key="record.id" class="record-item">
             <span class="game-name">{{ record.gameName }}</span>
             <span class="game-time">{{ record.time }}</span>
             <span class="bet-amount">￥{{ record.betAmount }}</span>
@@ -46,6 +46,34 @@
               {{ record.profit > 0 ? '+' : ''}}{{ record.profit }}
             </span>
           </div>
+        </div>
+
+        <!-- 添加分页控件 -->
+        <div v-if="totalPages > 1" class="pagination">
+          <button 
+            class="page-btn" 
+            :disabled="currentPage === 1"
+            @click="changePage(currentPage - 1)"
+          >
+            上一页
+          </button>
+          <div class="page-numbers">
+            <button 
+              v-for="page in totalPages" 
+              :key="page"
+              :class="['page-number', { active: page === currentPage }]"
+              @click="changePage(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+          <button 
+            class="page-btn" 
+            :disabled="currentPage === totalPages"
+            @click="changePage(currentPage + 1)"
+          >
+            下一页
+          </button>
         </div>
       </div>
     </main>
@@ -59,7 +87,9 @@ export default {
   name: 'BettingHistory',
   data() {
     return {
-      bettingHistory: [] // 所有投注记录
+      bettingHistory: [], // 所有投注记录
+      currentPage: 1,
+      pageSize: 10
     }
   },
   computed: {
@@ -68,6 +98,14 @@ export default {
     },
     totalProfit() {
       return this.bettingHistory.reduce((sum, record) => sum + record.profit, 0)
+    },
+    totalPages() {
+      return Math.ceil(this.bettingHistory.length / this.pageSize)
+    },
+    paginatedHistory() {
+      const start = (this.currentPage - 1) * this.pageSize
+      const end = start + this.pageSize
+      return this.bettingHistory.slice(start, end)
     }
   },
   mounted() {
@@ -89,6 +127,11 @@ export default {
         'Fishing': '捕鱼游戏'
       }
       return gameNames[gameCode] || gameCode
+    },
+    changePage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page
+      }
     }
   }
 }
@@ -268,6 +311,67 @@ h1 {
   color: #aaa;
 }
 
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.page-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.2);
+  transform: translateY(-2px);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.page-number {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-number:hover {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.3);
+}
+
+.page-number.active {
+  background: #00ff88;
+  color: #1a1a2e;
+  border-color: #00ff88;
+}
+
 @media (max-width: 768px) {
   .history-content {
     padding: 1rem;
@@ -316,6 +420,19 @@ h1 {
 
   .stat-value {
     font-size: 1.2rem;
+  }
+
+  .page-numbers {
+    display: none;
+  }
+
+  .pagination {
+    gap: 0.5rem;
+  }
+
+  .page-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
   }
 }
 </style> 
