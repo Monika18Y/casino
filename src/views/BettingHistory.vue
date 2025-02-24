@@ -12,6 +12,19 @@
     <main class="history-content">
       <h1>投注记录</h1>
       
+      <div class="stats-container">
+        <div class="stat-item">
+          <span class="stat-label">总投注金额</span>
+          <span class="stat-value">￥{{ totalBetAmount }}</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">总盈亏</span>
+          <span :class="['stat-value', totalProfit > 0 ? 'profit' : totalProfit < 0 ? 'loss' : 'tie']">
+            {{ totalProfit > 0 ? '+' : ''}}￥{{ totalProfit }}
+          </span>
+        </div>
+      </div>
+      
       <div class="records-container">
         <div class="records-header">
           <span>游戏</span>
@@ -47,6 +60,14 @@ export default {
   data() {
     return {
       bettingHistory: [] // 所有投注记录
+    }
+  },
+  computed: {
+    totalBetAmount() {
+      return this.bettingHistory.reduce((sum, record) => sum + record.betAmount, 0)
+    },
+    totalProfit() {
+      return this.bettingHistory.reduce((sum, record) => sum + record.profit, 0)
     }
   },
   mounted() {
@@ -207,6 +228,46 @@ h1 {
   transform: translateY(-2px);
 }
 
+.stats-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 2rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-label {
+  color: #aaa;
+  font-size: 1rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.stat-value.profit {
+  color: #00ff88;
+}
+
+.stat-value.loss {
+  color: #ff4444;
+}
+
+.stat-value.tie {
+  color: #aaa;
+}
+
 @media (max-width: 768px) {
   .history-content {
     padding: 1rem;
@@ -245,6 +306,16 @@ h1 {
   .bet-result::before {
     content: "结果: ";
     color: #00ff88;
+  }
+
+  .stats-container {
+    padding: 1.5rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .stat-value {
+    font-size: 1.2rem;
   }
 }
 </style> 

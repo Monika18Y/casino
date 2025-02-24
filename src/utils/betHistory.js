@@ -17,11 +17,11 @@ export const addBetHistory = (record) => {
       ...record
     })
     // 只保留最近20条记录
-    if (history.length > 20) {
-      history.pop()
-    }
+    // if (history.length > 20) {
+    //   history.pop()
+    // }
     sessionStorage.setItem('betHistory', JSON.stringify(history))
   } catch (error) {
-    console.error('Failed to save bet history:', error)
+    console.error('存储游戏记录失败:', error)
   }
 } 

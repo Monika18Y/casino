@@ -620,6 +620,11 @@ h1 {
   border-radius: 12px;
   padding: 2rem;
   margin: 2rem 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -o-user-select: none;
 }
 
 .cards-container {
@@ -628,12 +633,16 @@ h1 {
   align-items: center;
   gap: 4rem;
   padding: 2rem 0;
+  perspective: 1000px;
 }
 
 .card {
   position: relative;
   width: 180px;
   height: 252px;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
 }
 
 .card img {
@@ -642,12 +651,17 @@ h1 {
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-  transition: all 0.5s ease;
+  backface-visibility: hidden;
   transform-style: preserve-3d;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  -webkit-user-drag: none;
 }
 
 .card img.flipping {
-  transform: rotateY(180deg);
+  animation: cardFlip 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .vs {
@@ -655,6 +669,10 @@ h1 {
   font-weight: bold;
   color: #ff4444;
   text-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .card-label {
@@ -665,15 +683,39 @@ h1 {
   font-size: 1.5rem;
   font-weight: bold;
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
+@keyframes cardFlip {
+  0% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+/* 添加发光效果 */
 .dragon .card-label {
   color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
 }
 
 .tiger .card-label {
   color: #00ff88;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
 }
+
+/* 删除悬停效果 */
+/* .card:hover img {
+  box-shadow: 
+    0 0 30px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(0, 255, 136, 0.2);
+  transform: translateY(-5px);
+} */
 
 .betting-section {
   margin-top: 4rem;

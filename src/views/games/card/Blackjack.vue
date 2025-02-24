@@ -946,16 +946,17 @@ h1 {
 }
 
 .bet-amount input {
+  width: 100px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  text-align: center;
+  font-size: 1.1rem;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
   padding: 0.5rem;
   border-radius: 4px;
   margin-left: 1rem;
-  width: 100px;
-  -moz-appearance: textfield;
-  text-align: center;
-  font-size: 1.1rem;
   transition: all 0.3s ease;
   cursor: text;
   user-select: text;
