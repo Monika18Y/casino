@@ -424,34 +424,34 @@ export default {
         }
       }
 
-      let mainProfit = -this.betAmount
-      let splitProfit = this.splitCards.length > 0 ? -this.splitBetAmount : 0
+      let mainProfit = 0
+      let splitProfit = 0
 
       // 处理主牌结果
       if (type === 'blackjack') {
         mainProfit = this.betAmount * 1.5
         this.updateBalance(this.betAmount * 2.5)
         this.showGameResult('blackjack', mainProfit, '主牌')
-      } else {
-        if (this.playerPoints <= 21) {
-          if (this.dealerPoints > 21) {
-            mainProfit = this.betAmount
-            this.updateBalance(this.betAmount * 2)
-            this.showGameResult('win', mainProfit, '主牌')
-          } else if (this.playerPoints > this.dealerPoints) {
-            mainProfit = this.betAmount
-            this.updateBalance(this.betAmount * 2)
-            this.showGameResult('win', mainProfit, '主牌')
-          } else if (this.playerPoints < this.dealerPoints) {
-            this.showGameResult('lose', mainProfit, '主牌')
-          } else {
-            mainProfit = 0
-            this.updateBalance(this.betAmount)
-            this.showGameResult('tie', mainProfit, '主牌')
-          }
+      } else if (this.playerPoints <= 21) {
+        if (this.dealerPoints > 21) {
+          mainProfit = this.betAmount
+          this.updateBalance(this.betAmount * 2)
+          this.showGameResult('win', mainProfit, '主牌')
+        } else if (this.playerPoints > this.dealerPoints) {
+          mainProfit = this.betAmount
+          this.updateBalance(this.betAmount * 2)
+          this.showGameResult('win', mainProfit, '主牌')
+        } else if (this.playerPoints < this.dealerPoints) {
+          mainProfit = -this.betAmount
+          this.showGameResult('lose', mainProfit, '主牌')
         } else {
-          this.showGameResult('bust', mainProfit, '主牌')
+          mainProfit = 0
+          this.updateBalance(this.betAmount)
+          this.showGameResult('tie', mainProfit, '主牌')
         }
+      } else {
+        mainProfit = -this.betAmount
+        this.showGameResult('bust', mainProfit, '主牌')
       }
 
       // 处理分牌结果
@@ -467,6 +467,7 @@ export default {
               this.updateBalance(this.splitBetAmount * 2)
               this.showGameResult('win', splitProfit, '分牌')
             } else if (this.splitPoints < this.dealerPoints) {
+              splitProfit = -this.splitBetAmount
               this.showGameResult('lose', splitProfit, '分牌')
             } else {
               splitProfit = 0
@@ -474,6 +475,7 @@ export default {
               this.showGameResult('tie', splitProfit, '分牌')
             }
           } else {
+            splitProfit = -this.splitBetAmount
             this.showGameResult('bust', splitProfit, '分牌')
           }
 
@@ -487,16 +489,23 @@ export default {
             } else {
               this.showGameResult('tie', totalProfit, '总计')
             }
+            
+            // 添加游戏记录时包含保险信息
+            const hasInsuranceWin = this.hasInsurance && 
+                                  this.dealerPoints === 21 && 
+                                  this.dealerCards.length === 2
+            this.addHistory(mainProfit, splitProfit, hasInsuranceWin)
+            this.resetGame()
           }, 1500)
         }, 1500)
+      } else {
+        // 非分牌情况直接添加记录
+        const hasInsuranceWin = this.hasInsurance && 
+                               this.dealerPoints === 21 && 
+                               this.dealerCards.length === 2
+        this.addHistory(mainProfit, splitProfit, hasInsuranceWin)
+        this.resetGame()
       }
-
-      // 添加游戏记录时包含保险信息
-      const hasInsuranceWin = this.hasInsurance && 
-                             this.dealerPoints === 21 && 
-                             this.dealerCards.length === 2
-      this.addHistory(mainProfit, splitProfit, hasInsuranceWin)
-      this.resetGame()
     },
 
     updateBalance(amount) {
