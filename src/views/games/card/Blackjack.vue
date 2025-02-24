@@ -13,6 +13,8 @@
       </nav>
     </header>
 
+
+    <!-- 21点游戏区域 -->
     <main class="game-content">
       <h1>21点</h1>
       
