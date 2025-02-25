@@ -64,11 +64,11 @@
 import { useRouter } from 'vue-router'
 // 导入图片
 import luckyThreeImg from '@/assets/gamelist/lucky-three.jpg'
-import pokerImg from '@/assets/gamelist/poker.jpg'
 import rouletteImg from '@/assets/gamelist/roulette.jpg'
 import dragonTigerImg from '@/assets/gamelist/dragon-tiger.jpg'
 import fishingImg from '@/assets/gamelist/fishing.jpg'
 import blackjackImg from '@/assets/gamelist/blackjack.jpg'
+import baccaratImg from '@/assets/gamelist/baccarat.jpg'
 
 export default {
   name: 'GameCenter',
@@ -91,7 +91,7 @@ export default {
         {
           id: 1,
           name: '幸运快三',
-          description: '简单刺激的快三游戏',
+          description: '久盛不衰的骰子游戏',
           image: luckyThreeImg,
           category: 'card',
           players: '3.5k',
@@ -100,17 +100,18 @@ export default {
         },
         {
           id: 2,
-          name: '经典扑克',
-          description: '最受欢迎的扑克游戏',
-          image: pokerImg,
-          category: 'card',
-          players: '2.3k',
-          rating: 4.8
+          name: '百家乐',
+          description: '世界各地最受欢迎的扑克游戏',
+          image: baccaratImg,
+          category: 'live',
+          players: '6.5k',
+          rating: 5.0,
+          path: '/games/live/baccarat'
         },
         {
           id: 3,
           name: '幸运轮盘',
-          description: '刺激的轮盘游戏体验',
+          description: '真实的轮盘游戏体验',
           image: rouletteImg,
           category: 'live',
           players: '1.8k',
@@ -130,7 +131,7 @@ export default {
         {
           id: 5,
           name: '智汁捕鱼',
-          description: '刺激的捕鱼游戏体验',
+          description: '极具沉浸式的捕鱼游戏体验',
           image: fishingImg,
           category: 'fun',
           players: '2.3k',
@@ -140,7 +141,7 @@ export default {
         {
           id: 6,
           name: '21点',
-          description: '简单刺激的21点游戏',
+          description: '刺激的21点对决',
           image: blackjackImg,
           category: 'card',
           players: '3.5k',

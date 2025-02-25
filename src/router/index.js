@@ -10,6 +10,7 @@ import FishingGame from '@/views/games/fun/Fishing.vue'
 import Blackjack from '@/views/games/card/Blackjack.vue'
 import BettingHistory from '../views/BettingHistory.vue'
 import RouletteGame from '@/views/games/live/Roulette.vue'
+import BaccaratGame from '@/views/games/live/Baccarat.vue'
 
 const routes = [
   {
@@ -73,6 +74,12 @@ const routes = [
     path: '/games/live/roulette',
     name: 'Roulette',
     component: RouletteGame,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/games/live/baccarat',
+    name: 'Baccarat',
+    component: BaccaratGame,
     meta: { requiresAuth: true }
   }
 ]
