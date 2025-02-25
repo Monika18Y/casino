@@ -124,7 +124,8 @@ export default {
         'LuckyThree': '幸运快三',
         'DragonTiger': '龙虎斗',
         'Blackjack': '21点',
-        'Fishing': '捕鱼游戏'
+        'Fishing': '捕鱼游戏',
+        'Roulette': '轮盘'
       }
       return gameNames[gameCode] || gameCode
     },

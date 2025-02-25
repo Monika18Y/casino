@@ -39,14 +39,14 @@
             </div>
           </div>
 
-          <!-- 结果显示 -->
-          <div v-if="showResult" class="result-display">
-            <span :class="['number', getNumberColor(result)]">{{ result }}</span>
-          </div>
-
           <!-- 当前下注显示 -->
           <div class="current-bets">
-            <h3>当前下注</h3>
+            <div class="bets-header">
+              <h3>当前下注</h3>
+              <div v-if="showResult" class="result-inline">
+                <span :class="['number', getNumberColor(result)]">{{ result }}</span>
+              </div>
+            </div>
             <div class="bet-list" v-if="currentBets.length > 0">
               <div v-for="(bet, index) in currentBets" :key="index" class="bet-item">
                 <span class="bet-type">
@@ -163,12 +163,43 @@
           </div>
         </div>
       </div>
+      
+      <!-- 添加投注记录板块 -->
+      <div class="bet-history-section">
+        <div class="section-header">
+          <h2>投注记录</h2>
+          <router-link to="/betting-history" class="view-more">
+            查看更多
+            <span class="arrow">→</span>
+          </router-link>
+        </div>
+        <div class="history-list">
+          <div class="history-header">
+            <span>时间</span>
+            <span>投注项</span>
+            <span>结果</span>
+            <span>盈亏</span>
+          </div>
+          <div v-if="displayHistory.length === 0" class="no-records">
+            暂无投注记录
+          </div>
+          <div v-else v-for="record in displayHistory" :key="record.id" class="history-item">
+            <span class="time">{{ record.time }}</span>
+            <span class="bet-type">{{ record.betType }}</span>
+            <span class="amount">{{ record.result }}</span>
+            <span :class="['result', record.profit > 0 ? 'win' : record.profit < 0 ? 'lose' : 'tie']">
+              {{ record.profit > 0 ? '+' : ''}}{{ record.profit }}
+            </span>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
 
 <script>
 import { useRouter } from 'vue-router'
+import { getBetHistory, addBetHistory } from '@/utils/betHistory'
 
 export default {
   name: 'RouletteGame',
@@ -206,7 +237,8 @@ export default {
         { type: 'dozen1', name: '前12', odds: 2 },
         { type: 'dozen2', name: '中12', odds: 2 },
         { type: 'dozen3', name: '后12', odds: 2 },
-      ]
+      ],
+      betHistory: [] // 存储游戏记录
     }
   },
   computed: {
@@ -245,6 +277,9 @@ export default {
         default:
           return this.selectedNumbers
       }
+    },
+    displayHistory() {
+      return this.betHistory.slice(0, 10)
     }
   },
   methods: {
@@ -417,8 +452,31 @@ export default {
           this.userBalance += winAmount;
           this.updateUserBalance();
         }
+
+        // 获取数字颜色名称
+        let colorName = '';
+        if (number === 0) {
+          colorName = '绿色';
+        } else if (redNumbers.includes(number)) {
+          colorName = '红色';
+        } else {
+          colorName = '黑色';
+        }
+
+        // 添加游戏记录
+        addBetHistory({
+          game: 'Roulette',
+          betType: bet.type ? this.getBetTypeName(bet.type) : `号码: ${bet.numbers.join(', ')}`,
+          amount: bet.amount,
+          profit: win ? winAmount - bet.amount : -bet.amount,
+          result: `${number}${colorName}`,
+          resultColor: this.getNumberColor(number)
+        });
       });
 
+      // 更新本地游戏记录
+      this.betHistory = getBetHistory().filter(record => record.game === 'Roulette');
+      
       // 清空当前下注
       this.currentBets = [];
     },
@@ -447,6 +505,9 @@ export default {
     if (currentUser) {
       this.userBalance = currentUser.balance
     }
+    
+    // 读取历史记录
+    this.betHistory = getBetHistory().filter(record => record.game === 'Roulette')
   }
 }
 </script>
@@ -546,7 +607,7 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2rem;
+  height: 100%;
 }
 
 .wheel-container {
@@ -557,6 +618,7 @@ h1 {
   background: #2a2a4e;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  margin-bottom: 1rem;
 }
 
 .wheel {
@@ -624,15 +686,39 @@ h1 {
     0 0 20px rgba(255, 255, 255, 0.4);
 }
 
-.result-display {
-  font-size: 2rem;
+.current-bets {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 400px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 22px;
+}
+
+.bets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.bets-header h3 {
+  margin: 0;
+}
+
+.result-inline {
+  font-size: 1.2rem;
   font-weight: bold;
   animation: fadeIn 0.5s ease;
 }
 
-.result-display .number {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+.result-inline .number {
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .number.red { color: #ff4444; }
@@ -908,10 +994,8 @@ h1 {
     max-width: 600px;
   }
 
-  .number-cell {
-    font-size: 1rem;
-    min-width: 30px;
-    min-height: 30px;
+  .current-bets {
+    max-width: 600px; /* 与 betting-section 宽度一致 */
   }
 }
 
@@ -948,25 +1032,15 @@ h1 {
   }
 }
 
-.current-bets {
-  background: rgba(0, 0, 0, 0.2);
-  padding: 1rem;
-  border-radius: 8px;
-  margin-top: 1rem;
-  width: 100%;
-  max-width: 400px;
-  min-height: 150px;
-  max-height: 300px;
-}
-
 .bet-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin-top: 0.5rem;
-  max-height: 200px;
+  flex: 1;
   overflow-y: auto;
   padding-right: 0.5rem;
+  margin: 0;
+  max-height: 140px;
 }
 
 .bet-list::-webkit-scrollbar {
@@ -1044,7 +1118,11 @@ h1 {
 .no-bets {
   text-align: center;
   color: #aaa;
-  padding: 2rem 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
 }
 
 .action-buttons {
@@ -1105,6 +1183,159 @@ h1 {
   .spin-btn,
   .place-bet-btn {
     width: 100%;
+  }
+}
+
+.bet-history-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  max-width: 1200px;
+  margin: 2rem auto;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin-bottom: 0;
+  color: #00ff88;
+}
+
+.view-more {
+  color: #00ff88;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.view-more:hover {
+  transform: translateX(5px);
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.view-more:hover .arrow {
+  transform: translateX(3px);
+}
+
+.history-list {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr 1fr;
+  padding: 1rem;
+  background: rgba(0, 255, 136, 0.1);
+  font-weight: bold;
+  color: #00ff88;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr 1fr;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease;
+  align-items: center;
+  text-align: center;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.time {
+  color: #aaa;
+}
+
+.bet-type {
+  color: white;
+}
+
+.amount {
+  color: #aaa;
+}
+
+.result {
+  font-weight: bold;
+}
+
+.win {
+  color: #00ff88;
+}
+
+.lose {
+  color: #ff4444;
+}
+
+.tie {
+  color: #aaa;
+}
+
+.no-records {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
+}
+
+@media (max-width: 768px) {
+  .history-header,
+  .history-item {
+    font-size: 0.9rem;
+    padding: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .history-header {
+    display: none;
+  }
+
+  .history-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    text-align: left;
+    padding: 1rem;
+  }
+
+  .time::before {
+    content: "时间: ";
+    color: #00ff88;
+  }
+
+  .bet-type::before {
+    content: "投注: ";
+    color: #00ff88;
+  }
+
+  .amount::before {
+    content: "结果: ";
+    color: #00ff88;
+  }
+
+  .result::before {
+    content: "盈亏: ";
+    color: #00ff88;
   }
 }
 </style> 
