@@ -73,6 +73,10 @@
               :max="userBalance"
               :disabled="isSpinning"
             >
+            <div class="current-balance">
+              <span>当前余额:</span>
+              <span class="balance-value">￥{{ userBalance }}</span>
+            </div>
           </div>
 
           <!-- 内圈投注 -->
@@ -152,6 +156,13 @@
               @click="spinWheel"
             >
               {{ isSpinning ? '旋转中...' : currentBets.length === 0 ? '请先下注' : '开始旋转' }}
+            </button>
+            <button 
+              class="cancel-btn"
+              :disabled="isSpinning || currentBets.length === 0"
+              @click="cancelBets"
+            >
+              撤销下注
             </button>
             <button 
               class="place-bet-btn"
@@ -496,6 +507,23 @@ export default {
       const allBets = [...this.outsideBetsRow1, ...this.outsideBetsRow2];
       const bet = allBets.find(b => b.type === type);
       return bet ? bet.name : type;
+    },
+    // 新增：撤销所有下注
+    cancelBets() {
+      if (this.isSpinning || this.currentBets.length === 0) return;
+      
+      // 计算需要返还的总金额
+      let totalRefund = 0;
+      this.currentBets.forEach(bet => {
+        totalRefund += bet.amount;
+      });
+      
+      // 返还金额到用户余额
+      this.userBalance += totalRefund;
+      this.updateUserBalance();
+      
+      // 清空当前下注
+      this.currentBets = [];
     }
   },
   mounted() {
@@ -601,6 +629,10 @@ h1 {
   gap: 2rem;
   justify-content: center;
   align-items: flex-start;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .roulette-section {
@@ -608,6 +640,10 @@ h1 {
   flex-direction: column;
   align-items: center;
   height: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .wheel-container {
@@ -726,22 +762,67 @@ h1 {
 .number.green { color: #00ff88; }
 
 .spin-btn {
-  padding: 1rem 2rem;
-  font-size: 1.2rem;
-  background: #00ff88;
-  color: #1a1a2e;
+  flex: 1;
+  padding: 1rem;
+  background: #ff4444;
+  color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  font-weight: bold;
   transition: all 0.3s ease;
 }
 
 .spin-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2);
 }
 
 .spin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  flex: 1;
+  padding: 1rem;
+  background: #ffaa00;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 170, 0, 0.2);
+}
+
+.cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.place-bet-btn {
+  flex: 1;
+  padding: 1rem;
+  background: #00ff88;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.place-bet-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+}
+
+.place-bet-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -787,10 +868,18 @@ h1 {
   padding: 2rem;
   border-radius: 12px;
   width: 600px;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .bet-amount {
   margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 .bet-amount input {
@@ -799,8 +888,21 @@ h1 {
   color: white;
   padding: 0.5rem;
   border-radius: 4px;
-  margin-left: 1rem;
   width: 100px;
+}
+
+.current-balance {
+  background: rgba(0, 255, 136, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.balance-value {
+  color: #00ff88;
+  font-weight: bold;
 }
 
 .inside-bets {
@@ -962,7 +1064,7 @@ h1 {
 }
 
 .place-bet-btn {
-  width: 100%;
+  flex: 1;
   padding: 1rem;
   background: #00ff88;
   color: #1a1a2e;
@@ -1149,6 +1251,28 @@ h1 {
 }
 
 .spin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  flex: 1;
+  padding: 1rem;
+  background: #ffaa00;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 170, 0, 0.2);
+}
+
+.cancel-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
