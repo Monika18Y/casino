@@ -44,14 +44,22 @@
             <span :class="['number', getNumberColor(result)]">{{ result }}</span>
           </div>
 
-          <!-- 开始按钮 -->
-          <button 
-            class="spin-btn"
-            :disabled="isSpinning"
-            @click="spinWheel"
-          >
-            {{ isSpinning ? '旋转中...' : '开始旋转' }}
-          </button>
+          <!-- 当前下注显示 -->
+          <div class="current-bets">
+            <h3>当前下注</h3>
+            <div class="bet-list" v-if="currentBets.length > 0">
+              <div v-for="(bet, index) in currentBets" :key="index" class="bet-item">
+                <span class="bet-type">
+                  {{ bet.type ? getBetTypeName(bet.type) : `号码: ${bet.numbers.join(', ')}` }}
+                </span>
+                <span class="bet-amount">￥{{ bet.amount }}</span>
+                <span class="bet-odds">赔率 1:{{ bet.odds }}</span>
+              </div>
+            </div>
+            <div v-else class="no-bets">
+              暂无下注
+            </div>
+          </div>
         </div>
 
         <!-- 右侧下注区域 -->
@@ -136,13 +144,23 @@
             </div>
           </div>
 
-          <button 
-            class="place-bet-btn"
-            :disabled="!canPlaceBet"
-            @click="placeBet"
-          >
-            确认下注
-          </button>
+          <!-- 按钮区域 -->
+          <div class="action-buttons">
+            <button 
+              class="spin-btn"
+              :disabled="isSpinning || currentBets.length === 0"
+              @click="spinWheel"
+            >
+              {{ isSpinning ? '旋转中...' : currentBets.length === 0 ? '请先下注' : '开始旋转' }}
+            </button>
+            <button 
+              class="place-bet-btn"
+              :disabled="!canPlaceBet"
+              @click="placeBet"
+            >
+              确认下注
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -174,18 +192,20 @@ export default {
       betAmount: 10,
       selectedBet: null,
       selectedNumbers: [],
+      currentBets: [], // 存储当前所有下注
+      betResults: [], // 存储每次下注的结果
       outsideBetsRow1: [
-        { type: 'red', name: '红色', odds: '1:1' },
-        { type: 'black', name: '黑色', odds: '1:1' },
-        { type: 'odd', name: '单数', odds: '1:1' },
-        { type: 'even', name: '双数', odds: '1:1' },
+        { type: 'red', name: '红色', odds: 1 },
+        { type: 'black', name: '黑色', odds: 1 },
+        { type: 'odd', name: '单数', odds: 1 },
+        { type: 'even', name: '双数', odds: 1 },
       ],
       outsideBetsRow2: [
-        { type: 'low', name: '1-18', odds: '1:1' },
-        { type: 'high', name: '19-36', odds: '1:1' },
-        { type: 'dozen1', name: '前12', odds: '1:2' },
-        { type: 'dozen2', name: '中12', odds: '1:2' },
-        { type: 'dozen3', name: '后12', odds: '1:2' },
+        { type: 'low', name: '1-18', odds: 1 },
+        { type: 'high', name: '19-36', odds: 1 },
+        { type: 'dozen1', name: '前12', odds: 2 },
+        { type: 'dozen2', name: '中12', odds: 2 },
+        { type: 'dozen3', name: '后12', odds: 2 },
       ]
     }
   },
@@ -240,45 +260,49 @@ export default {
     },
     // 旋转轮盘
     spinWheel() {
-      if (this.isSpinning) return
+      if (this.isSpinning || this.currentBets.length === 0) return;
 
-      this.isSpinning = true
-      this.showResult = false
+      this.isSpinning = true;
+      this.showResult = false;
       
       // 轮盘旋转圈数(5-8圈)
-      const wheelSpins = 5 + Math.floor(Math.random() * 4)
+      const wheelSpins = 5 + Math.floor(Math.random() * 4);
       // 最终停止位置(0-360度)
-      const finalRotation = Math.floor(Math.random() * 360)
+      const finalRotation = Math.floor(Math.random() * 360);
       
       // 轮盘总旋转角度
-      const totalRotation = wheelSpins * 360 + finalRotation
+      const totalRotation = wheelSpins * 360 + finalRotation;
       
       // 小球反向旋转圈数(比轮盘多3-4圈)
-      const ballSpins = wheelSpins + 3 + Math.floor(Math.random() * 2)
-      const ballFinalRotation = Math.floor(Math.random() * 360)
-      const totalBallRotation = ballSpins * 360 + ballFinalRotation
+      const ballSpins = wheelSpins + 3 + Math.floor(Math.random() * 2);
+      const ballFinalRotation = Math.floor(Math.random() * 360);
+      const totalBallRotation = ballSpins * 360 + ballFinalRotation;
 
       // 设置动画
-      this.wheelRotation = totalRotation
-      this.ballRotation = totalBallRotation
+      this.wheelRotation = totalRotation;
+      this.ballRotation = totalBallRotation;
 
       // 计算结果
       setTimeout(() => {
         // 计算轮盘和小球的最终角度
-        const wheelFinalAngle = this.wheelRotation % 360
-        const ballFinalAngle = this.ballRotation % 360
+        const wheelFinalAngle = this.wheelRotation % 360;
+        const ballFinalAngle = this.ballRotation % 360;
         
         // 计算相对角度（轮盘顺时针，小球逆时针）
-        const relativeAngle = (wheelFinalAngle + ballFinalAngle) % 360
+        const relativeAngle = (wheelFinalAngle + ballFinalAngle) % 360;
         
         // 计算对应的数字索引
-        const anglePerSlot = 360 / this.wheelNumbers.length
-        const slotIndex = Math.floor((360 - relativeAngle) / anglePerSlot) % this.wheelNumbers.length
+        const anglePerSlot = 360 / this.wheelNumbers.length;
+        const slotIndex = Math.floor((360 - relativeAngle) / anglePerSlot) % this.wheelNumbers.length;
         
-        this.result = this.wheelNumbers[slotIndex]
-        this.showResult = true
-        this.isSpinning = false
-      }, 8000)
+        this.result = this.wheelNumbers[slotIndex];
+        this.showResult = true;
+        
+        // 检查所有下注是否中奖
+        this.checkWin(this.result);
+        
+        this.isSpinning = false;
+      }, 8000);
     },
     selectBet(type) {
       this.selectedBet = this.selectedBet === type ? null : type
@@ -294,12 +318,126 @@ export default {
       this.selectedBet = null
     },
     placeBet() {
-      // TODO: 实现下注逻辑
+      if (!this.canPlaceBet) return;
+      
+      // 检查余额是否足够
+      const totalBetAmount = this.selectedBet ? 
+        this.betAmount : 
+        this.betAmount * this.selectedNumbers.length; // 多个数字时，每个数字都需要下注金额
+
+      if (totalBetAmount > this.userBalance) {
+        alert('余额不足');
+        return;
+      }
+
+      if (this.selectedBet) {
+        // 外围下注
+        let bet = {
+          amount: this.betAmount,
+          type: this.selectedBet,
+          numbers: [],
+          odds: this.calculateOdds()
+        };
+        this.currentBets.push(bet);
+        this.userBalance -= this.betAmount;
+      } else {
+        // 数字下注 - 每个数字独立下注
+        this.selectedNumbers.forEach(number => {
+          let bet = {
+            amount: this.betAmount,
+            type: null,
+            numbers: [number],
+            odds: 35 // 固定赔率1:35
+          };
+          this.currentBets.push(bet);
+          this.userBalance -= this.betAmount;
+        });
+      }
+
+      this.updateUserBalance();
+      
+      // 重置选择
+      this.selectedBet = null;
+      this.selectedNumbers = [];
+    },
+    calculateOdds() {
+      if (this.selectedBet) {
+        // 外围下注赔率
+        const outsideBet = [...this.outsideBetsRow1, ...this.outsideBetsRow2]
+          .find(bet => bet.type === this.selectedBet);
+        return outsideBet ? outsideBet.odds : 0;
+      }
+      return 0;
+    },
+    checkWin(number) {
+      const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+      
+      this.currentBets.forEach(bet => {
+        let win = false;
+        let winAmount = 0;
+
+        if (bet.type) {
+          // 检查外围下注
+          switch(bet.type) {
+            case 'red':
+              win = redNumbers.includes(number);
+              break;
+            case 'black':
+              win = !redNumbers.includes(number) && number !== 0;
+              break;
+            case 'odd':
+              win = number % 2 === 1 && number !== 0;
+              break;
+            case 'even':
+              win = number % 2 === 0 && number !== 0;
+              break;
+            case 'low':
+              win = number >= 1 && number <= 18;
+              break;
+            case 'high':
+              win = number >= 19 && number <= 36;
+              break;
+            case 'dozen1':
+              win = number >= 1 && number <= 12;
+              break;
+            case 'dozen2':
+              win = number >= 13 && number <= 24;
+              break;
+            case 'dozen3':
+              win = number >= 25 && number <= 36;
+              break;
+          }
+        } else {
+          // 检查数字下注 - 精确匹配
+          win = bet.numbers[0] === number;
+        }
+
+        if (win) {
+          winAmount = bet.amount * (bet.odds + 1); // 赔率加上本金
+          this.userBalance += winAmount;
+          this.updateUserBalance();
+        }
+      });
+
+      // 清空当前下注
+      this.currentBets = [];
+    },
+    updateUserBalance() {
+      const users = JSON.parse(localStorage.getItem('users') || '{}');
+      if (users[this.username]) {
+        users[this.username].balance = this.userBalance;
+        localStorage.setItem('users', JSON.stringify(users));
+      }
     },
     // 修改：根据行列位置获取对应数字
     getNumberByPosition(row, col) {
       // 新的计算逻辑：从上到下递增
       return row + (col - 1) * 3
+    },
+    getBetTypeName(type) {
+      const allBets = [...this.outsideBetsRow1, ...this.outsideBetsRow2];
+      const bet = allBets.find(b => b.type === type);
+      return bet ? bet.name : type;
     }
   },
   mounted() {
@@ -409,7 +547,6 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 2rem;
-  margin: 2rem 0;
 }
 
 .wheel-container {
@@ -808,6 +945,166 @@ h1 {
     font-size: 0.8rem;
     min-width: 20px;
     min-height: 20px;
+  }
+}
+
+.current-bets {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 400px;
+  min-height: 150px;
+  max-height: 300px;
+}
+
+.bet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.bet-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bet-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.bet-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 136, 0.3);
+  border-radius: 3px;
+}
+
+.bet-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 136, 0.5);
+}
+
+.bet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.bet-item.win {
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.bet-type {
+  flex: 1;
+}
+
+.bet-amount {
+  color: #00ff88;
+  margin: 0 1rem;
+}
+
+.bet-odds {
+  color: #aaa;
+}
+
+.result-amount {
+  color: #ff4444;
+  font-weight: bold;
+}
+
+.result-amount.win {
+  color: #00ff88;
+}
+
+@media (max-width: 768px) {
+  .current-bets {
+    max-width: 100%;
+  }
+
+  .bet-item {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+
+  .bet-amount,
+  .bet-odds {
+    margin: 0;
+  }
+}
+
+.no-bets {
+  text-align: center;
+  color: #aaa;
+  padding: 2rem 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.spin-btn {
+  flex: 1;
+  padding: 1rem;
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.spin-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2);
+}
+
+.spin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.place-bet-btn {
+  flex: 1;
+  padding: 1rem;
+  background: #00ff88;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.place-bet-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+}
+
+.place-bet-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .spin-btn,
+  .place-bet-btn {
+    width: 100%;
   }
 }
 </style> 
