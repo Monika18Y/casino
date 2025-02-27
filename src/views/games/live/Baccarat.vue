@@ -27,32 +27,88 @@
         
         <!-- 游戏桌面 -->
         <div class="table-area">
+          <!-- 补牌区域 - 放在中上部 -->
+          <div class="extra-cards-area">
+            <div class="extra-card-slots">
+              <div class="card-slot"></div>
+              <div class="card-slot"></div>
+            </div>
+          </div>
+          
           <!-- 闲家区域 -->
           <div class="player-area">
+            <div class="area-label">闲</div>
             <div class="card-area">
               <div class="card-slot"></div>
               <div class="card-slot"></div>
               <div class="card-slot third-card"></div>
             </div>
-            <div class="area-label">闲</div>
           </div>
           
           <!-- 庄家区域 -->
           <div class="banker-area">
+            <div class="area-label">庄</div>
             <div class="card-area">
               <div class="card-slot"></div>
               <div class="card-slot"></div>
               <div class="card-slot third-card"></div>
             </div>
-            <div class="area-label">庄</div>
           </div>
           
-          <!-- 补牌区域 -->
-          <div class="extra-cards-area">
-            <div class="area-label">补牌区</div>
-            <div class="extra-card-slots">
-              <div class="card-slot"></div>
-              <div class="card-slot"></div>
+          <!-- 下注区域 - 2x3布局 -->
+          <div class="betting-zones">
+            <!-- 第一行 -->
+            <div class="bet-row">
+              <!-- 闲家下注区域 -->
+              <div class="bet-zone player-bet-zone" @click="placeBetOnZone('player')">
+                <div class="bet-zone-label">闲家</div>
+                <div class="bet-amount" v-if="getZoneTotalAmount('player') > 0">
+                  {{getZoneTotalAmount('player')}}
+                </div>
+              </div>
+              
+              <!-- 和局下注区域 -->
+              <div class="bet-zone tie-bet-zone" @click="placeBetOnZone('tie')">
+                <div class="bet-zone-label">和局</div>
+                <div class="bet-amount" v-if="getZoneTotalAmount('tie') > 0">
+                  {{getZoneTotalAmount('tie')}}
+                </div>
+              </div>
+              
+              <!-- 庄家下注区域 -->
+              <div class="bet-zone banker-bet-zone" @click="placeBetOnZone('banker')">
+                <div class="bet-zone-label">庄家</div>
+                <div class="bet-amount" v-if="getZoneTotalAmount('banker') > 0">
+                  {{getZoneTotalAmount('banker')}}
+                </div>
+              </div>
+            </div>
+            
+            <!-- 第二行 -->
+            <div class="bet-row">
+              <!-- 闲对下注区域 -->
+              <div class="bet-zone player-pair-bet-zone" @click="placeBetOnZone('playerPair')">
+                <div class="bet-zone-label">闲对</div>
+                <div class="bet-amount" v-if="getZoneTotalAmount('playerPair') > 0">
+                  {{getZoneTotalAmount('playerPair')}}
+                </div>
+              </div>
+              
+              <!-- 幸运六下注区域 -->
+              <div class="bet-zone lucky-six-bet-zone" @click="placeBetOnZone('luckySix')">
+                <div class="bet-zone-label">幸运六</div>
+                <div class="bet-amount" v-if="getZoneTotalAmount('luckySix') > 0">
+                  {{getZoneTotalAmount('luckySix')}}
+                </div>
+              </div>
+              
+              <!-- 庄对下注区域 -->
+              <div class="bet-zone banker-pair-bet-zone" @click="placeBetOnZone('bankerPair')">
+                <div class="bet-zone-label">庄对</div>
+                <div class="bet-amount" v-if="getZoneTotalAmount('bankerPair') > 0">
+                  {{getZoneTotalAmount('bankerPair')}}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -61,59 +117,21 @@
       <!-- 下注区域 -->
       <div class="betting-area">
         <div class="bet-options">
-          <div class="bet-amount-section">
-            <span>下注金额:</span>
-            <input 
-              type="number" 
-              v-model="betAmount" 
-              min="1" 
-              :max="userBalance"
-              :disabled="isDealing"
-            >
+          <div class="chips-selection">
             <div class="current-balance">
               <span>当前余额:</span>
               <span class="balance-value">￥{{ userBalance }}</span>
             </div>
-          </div>
-          
-          <div class="bet-buttons">
-            <button 
-              class="bet-btn player"
-              :class="{ active: selectedBet === 'player' }"
-              :disabled="isDealing"
-              @click="selectBet('player')"
-            >
-              闲家
-              <span class="odds">1:1</span>
-            </button>
-            <button 
-              class="bet-btn banker"
-              :class="{ active: selectedBet === 'banker' }"
-              :disabled="isDealing"
-              @click="selectBet('banker')"
-            >
-              庄家
-              <span class="odds">1:0.95</span>
-            </button>
-            <button 
-              class="bet-btn tie"
-              :class="{ active: selectedBet === 'tie' }"
-              :disabled="isDealing"
-              @click="selectBet('tie')"
-            >
-              和局
-              <span class="odds">1:8</span>
-            </button>
+            <div class="chips-rack">
+              <div class="chip" :class="{ active: selectedChipValue === 10 }" @click="selectChip(10)">10</div>
+              <div class="chip" :class="{ active: selectedChipValue === 50 }" @click="selectChip(50)">50</div>
+              <div class="chip" :class="{ active: selectedChipValue === 100 }" @click="selectChip(100)">100</div>
+              <div class="chip" :class="{ active: selectedChipValue === 500 }" @click="selectChip(500)">500</div>
+              <div class="chip" :class="{ active: selectedChipValue === 1000 }" @click="selectChip(1000)">1000</div>
+            </div>
           </div>
           
           <div class="action-buttons">
-            <button 
-              class="deal-btn"
-              :disabled="!canDeal || isDealing"
-              @click="dealCards"
-            >
-              {{ isDealing ? '发牌中...' : '发牌' }}
-            </button>
             <button 
               class="cancel-btn"
               :disabled="isDealing || currentBets.length === 0"
@@ -122,26 +140,12 @@
               撤销下注
             </button>
             <button 
-              class="place-bet-btn"
-              :disabled="!canPlaceBet || isDealing"
-              @click="placeBet"
+              class="deal-btn"
+              :disabled="isDealing || currentBets.length === 0"
+              @click="startDealing"
             >
-              确认下注
+              发牌
             </button>
-          </div>
-        </div>
-        
-        <!-- 当前下注显示 -->
-        <div class="current-bets">
-          <h3>当前下注</h3>
-          <div class="bet-list" v-if="currentBets.length > 0">
-            <div v-for="(bet, index) in currentBets" :key="index" class="bet-item">
-              <span class="bet-type">{{ getBetTypeName(bet.type) }}</span>
-              <span class="bet-amount">￥{{ bet.amount }}</span>
-            </div>
-          </div>
-          <div v-else class="no-bets">
-            暂无下注
           </div>
         </div>
       </div>
@@ -162,52 +166,66 @@ export default {
     return {
       userBalance: 0,
       username: localStorage.getItem('currentUser'),
-      betAmount: 10,
-      selectedBet: null,
+      selectedChipValue: 10,
       currentBets: [],
-      isDealing: false
+      isDealing: false,
+      chipColors: {
+        10: { background: '#5DA5DA', border: '#4A90E2' },
+        50: { background: '#FAA43A', border: '#E67E22' },
+        100: { background: '#60BD68', border: '#2ECC71' },
+        500: { background: '#F17CB0', border: '#E84393' },
+        1000: { background: '#B276B2', border: '#8E44AD' }
+      }
     }
   },
   computed: {
     canPlaceBet() {
       return !this.isDealing && 
-             this.betAmount > 0 && 
-             this.betAmount <= this.userBalance &&
-             this.selectedBet !== null
-    },
-    canDeal() {
-      return !this.isDealing && this.currentBets.length > 0
+             this.selectedChipValue > 0 && 
+             this.selectedChipValue <= this.userBalance
     }
   },
   methods: {
     goToProfile() {
       this.router.push('/profile')
     },
-    selectBet(type) {
-      this.selectedBet = this.selectedBet === type ? null : type
+    selectChip(value) {
+      if (this.isDealing) return;
+      this.selectedChipValue = value;
     },
-    placeBet() {
-      if (!this.canPlaceBet) return;
+    getChipStyle(amount) {
+      const color = this.chipColors[amount] || this.chipColors[10];
+      return {
+        backgroundColor: color.background,
+        borderColor: color.border
+      };
+    },
+    getZoneBets(type) {
+      return this.currentBets.filter(bet => bet.type === type);
+    },
+    getZoneTotalAmount(type) {
+      const bets = this.getZoneBets(type);
+      return bets.reduce((total, bet) => total + bet.amount, 0);
+    },
+    placeBetOnZone(type) {
+      if (this.isDealing || !this.canPlaceBet) return;
       
       // 检查余额是否足够
-      if (this.betAmount > this.userBalance) {
+      if (this.selectedChipValue > this.userBalance) {
         alert('余额不足');
         return;
       }
 
       // 添加下注
       let bet = {
-        type: this.selectedBet,
-        amount: this.betAmount
+        type: type,
+        amount: this.selectedChipValue
       };
       this.currentBets.push(bet);
       
       // 扣除余额
-      this.userBalance -= this.betAmount;
+      this.userBalance -= this.selectedChipValue;
       this.updateUserBalance();
-      
-      // 重置选择
-      this.selectedBet = null;
     },
     cancelBets() {
       if (this.isDealing || this.currentBets.length === 0) return;
@@ -225,8 +243,8 @@ export default {
       // 清空当前下注
       this.currentBets = [];
     },
-    dealCards() {
-      if (!this.canDeal) return;
+    startDealing() {
+      if (this.currentBets.length === 0) return;
       
       this.isDealing = true;
       
@@ -245,6 +263,9 @@ export default {
         case 'player': return '闲家';
         case 'banker': return '庄家';
         case 'tie': return '和局';
+        case 'playerPair': return '闲对';
+        case 'bankerPair': return '庄对';
+        case 'luckySix': return '幸运六';
         default: return type;
       }
     },
@@ -385,13 +406,14 @@ h1 {
   width: 800px;
   height: 400px;
   background: rgba(0, 100, 0, 0.3);
-  border-radius: 200px;
+  border-radius: 180px;
   border: 10px solid rgba(139, 69, 19, 0.6);
   position: relative;
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   align-items: center;
   padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .player-area, .banker-area {
@@ -399,11 +421,22 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  width: 40%;
+  position: relative;
+  margin-bottom: 80px; /* 为下注区域留出空间 */
+}
+
+.player-area {
+  margin-right: 5%;
+}
+
+.banker-area {
+  margin-left: 5%;
 }
 
 .card-area {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.8rem;
 }
 
 .card-slot {
@@ -412,31 +445,76 @@ h1 {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.card-slot:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 .third-card {
-  margin-top: 20px;
+  margin-left: 10px;
+  position: relative;
+  top: -20px;
 }
 
 .area-label {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: bold;
   color: white;
-  text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  padding: 0.5rem 1.5rem;
+  border-radius: 30px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.player-area .area-label {
+  color: #4a7aff;
+}
+
+.banker-area .area-label {
+  color: #ff4444;
 }
 
 .extra-cards-area {
   position: absolute;
-  top: 20px;
-  right: 50px;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
 }
 
 .extra-card-slots {
   display: flex;
+  gap: 1rem;
+}
+
+.extra-card-slots .card-slot {
+  width: 60px;
+  height: 85px;
+  opacity: 0.8;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 下注区域 - 2x3布局 */
+.betting-zones {
+  position: absolute;
+  bottom: 20px;
+  width: 60%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bet-row {
+  display: flex;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
@@ -460,20 +538,13 @@ h1 {
   gap: 1.5rem;
 }
 
-.bet-amount-section {
+/* 筹码选择区域 */
+.chips-selection {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 1rem;
-}
-
-.bet-amount-section input {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 0.5rem;
-  border-radius: 4px;
-  width: 100px;
 }
 
 .current-balance {
@@ -490,87 +561,151 @@ h1 {
   font-weight: bold;
 }
 
-.bet-buttons {
+.chips-rack {
   display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+  gap: 0.8rem;
+  flex-wrap: wrap;
 }
 
-.bet-btn {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.chip {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+  border: 3px dashed rgba(255, 255, 255, 0.3);
+  user-select: none;
+}
+
+.chip:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.chip.active {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  border: 3px dashed rgba(255, 255, 255, 0.8);
+}
+
+/* 筹码颜色 */
+.chip:nth-child(1) {
+  background-color: #5DA5DA;
+  border-color: #4A90E2;
   color: white;
-  padding: 1rem 0.5rem;
-  border-radius: 8px;
+}
+
+.chip:nth-child(2) {
+  background-color: #FAA43A;
+  border-color: #E67E22;
+  color: white;
+}
+
+.chip:nth-child(3) {
+  background-color: #60BD68;
+  border-color: #2ECC71;
+  color: white;
+}
+
+.chip:nth-child(4) {
+  background-color: #F17CB0;
+  border-color: #E84393;
+  color: white;
+}
+
+.chip:nth-child(5) {
+  background-color: #B276B2;
+  border-color: #8E44AD;
+  color: white;
+}
+
+/* 下注区域 */
+.bet-zone {
+  position: relative;
+  padding: 0.25rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  min-width: 50px;
+  min-height: 35px;
   cursor: pointer;
   transition: all 0.3s ease;
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  align-items: center;
 }
 
-.bet-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
+.bet-zone:hover {
+  background: rgba(255, 255, 255, 0.1);
   transform: translateY(-2px);
 }
 
-.bet-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.bet-zone-label {
+  font-size: 0.7rem;
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
-.bet-btn.active {
-  background: rgba(0, 255, 136, 0.2);
-  border-color: #00ff88;
+.player-bet-zone, .player-pair-bet-zone {
+  border-color: rgba(74, 122, 255, 0.5);
 }
 
-.bet-btn.player {
-  border-color: #4a7aff;
+.banker-bet-zone, .banker-pair-bet-zone {
+  border-color: rgba(255, 68, 68, 0.5);
 }
 
-.bet-btn.banker {
-  border-color: #ff4444;
+.tie-bet-zone {
+  border-color: rgba(0, 255, 136, 0.5);
 }
 
-.bet-btn.tie {
-  border-color: #00ff88;
+.lucky-six-bet-zone {
+  border-color: rgba(255, 170, 0, 0.5);
 }
 
-.odds {
-  font-size: 0.8rem;
+.bet-amount {
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  min-width: 30px;
+  text-align: center;
+}
+
+.player-bet-zone .bet-amount, .player-pair-bet-zone .bet-amount {
+  color: #4a7aff;
+}
+
+.banker-bet-zone .bet-amount, .banker-pair-bet-zone .bet-amount {
+  color: #ff4444;
+}
+
+.tie-bet-zone .bet-amount {
   color: #00ff88;
-  margin-top: 0.3rem;
-  opacity: 0.8;
+}
+
+.lucky-six-bet-zone .bet-amount {
+  color: #ffaa00;
 }
 
 .action-buttons {
   display: flex;
   gap: 1rem;
-}
-
-.deal-btn {
-  flex: 1;
-  padding: 1rem;
-  background: #4a7aff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
-}
-
-.deal-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 122, 255, 0.2);
-}
-
-.deal-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  margin-top: 1rem;
 }
 
 .cancel-btn {
@@ -595,11 +730,11 @@ h1 {
   cursor: not-allowed;
 }
 
-.place-bet-btn {
+.deal-btn {
   flex: 1;
   padding: 1rem;
-  background: #00ff88;
-  color: #1a1a2e;
+  background: #ff4444;
+  color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -607,48 +742,14 @@ h1 {
   transition: all 0.3s ease;
 }
 
-.place-bet-btn:hover:not(:disabled) {
+.deal-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2);
 }
 
-.place-bet-btn:disabled {
+.deal-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* 当前下注显示 */
-.current-bets {
-  width: 100%;
-  margin-top: 1.5rem;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.current-bets h3 {
-  margin-bottom: 1rem;
-  color: #00ff88;
-}
-
-.bet-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.bet-item {
-  display: flex;
-  justify-content: space-between;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-}
-
-.no-bets {
-  text-align: center;
-  color: #aaa;
-  padding: 1rem;
 }
 
 /* 响应式设计 */
@@ -657,6 +758,7 @@ h1 {
     width: 100%;
     height: auto;
     padding: 1.5rem;
+    border-radius: 100px;
   }
   
   .card-slot {
@@ -664,12 +766,34 @@ h1 {
     height: 70px;
   }
   
-  .bet-buttons {
-    flex-direction: column;
+  .extra-card-slots .card-slot {
+    width: 45px;
+    height: 65px;
   }
   
-  .action-buttons {
-    flex-direction: column;
+  .third-card {
+    top: -10px;
+  }
+  
+  .betting-zones {
+    width: 70%;
+    bottom: 15px;
+  }
+  
+  .bet-zone {
+    min-width: 45px;
+    min-height: 32px;
+    padding: 0.2rem;
+  }
+  
+  .placed-chip {
+    width: 20px;
+    height: 20px;
+    font-size: 0.5rem;
+  }
+  
+  .player-area, .banker-area {
+    margin-bottom: 70px;
   }
 }
 
@@ -691,6 +815,7 @@ h1 {
   .table-area {
     border-radius: 100px;
     padding: 1rem;
+    height: 500px; /* 增加高度以容纳垂直排列的下注区域 */
   }
   
   .card-slot {
@@ -703,10 +828,46 @@ h1 {
   }
   
   .extra-cards-area {
-    position: relative;
-    top: auto;
-    right: auto;
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 0;
+  }
+  
+  .betting-zones {
+    width: 60%;
+    bottom: 10px;
+  }
+  
+  .bet-row {
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  
+  .chips-rack {
+    justify-content: center;
     margin-top: 1rem;
+  }
+  
+  .current-balance {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .bet-zone {
+    min-width: 35px;
+    min-height: 28px;
+  }
+  
+  .placed-chip {
+    width: 18px;
+    height: 18px;
+    font-size: 0.45rem;
+  }
+  
+  .player-area, .banker-area {
+    margin-bottom: 0;
   }
 }
 </style> 
