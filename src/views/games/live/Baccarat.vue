@@ -27,6 +27,19 @@
         
         <!-- 游戏桌面 -->
         <div class="table-area">
+          <!-- 游戏状态显示 -->
+          <div class="game-status" v-if="isDealing">
+            <div class="status-text">发牌中...</div>
+          </div>
+          
+          <!-- 游戏结果显示 -->
+          <div class="game-result" v-if="gameResult && !isDealing">
+            <div class="result-text" :class="gameResult">
+              {{ gameResult === 'player' ? '闲家赢' : 
+                 gameResult === 'banker' ? '庄家赢' : '和局' }}
+            </div>
+          </div>
+          
           <!-- 补牌区域 - 放在中上部 -->
           <div class="extra-cards-area">
             <div class="extra-card-slots">
@@ -37,21 +50,41 @@
           
           <!-- 闲家区域 -->
           <div class="player-area">
-            <div class="area-label">闲</div>
+            <div class="area-label">闲 {{ playerScore }}</div>
             <div class="card-area">
-              <div class="card-slot"></div>
-              <div class="card-slot"></div>
-              <div class="card-slot third-card"></div>
+              <div v-for="(card, index) in playerCards" 
+                   :key="'player-'+index"
+                   class="card-slot"
+                   :class="{'third-card': index === 2}">
+                <img :src="getCardImage(card)" 
+                     :alt="card.value" 
+                     class="card-image"
+                     :style="{'animation-delay': index * 0.5 + 's'}">
+              </div>
+              <div class="card-slot empty" 
+                   v-for="i in (3 - playerCards.length)" 
+                   :key="'empty-player-'+i">
+              </div>
             </div>
           </div>
           
           <!-- 庄家区域 -->
           <div class="banker-area">
-            <div class="area-label">庄</div>
+            <div class="area-label">庄 {{ bankerScore }}</div>
             <div class="card-area">
-              <div class="card-slot"></div>
-              <div class="card-slot"></div>
-              <div class="card-slot third-card"></div>
+              <div v-for="(card, index) in bankerCards" 
+                   :key="'banker-'+index"
+                   class="card-slot"
+                   :class="{'third-card': index === 2}">
+                <img :src="getCardImage(card)" 
+                     :alt="card.value" 
+                     class="card-image"
+                     :style="{'animation-delay': (index * 0.5 + 0.25) + 's'}">
+              </div>
+              <div class="card-slot empty" 
+                   v-for="i in (3 - bankerCards.length)" 
+                   :key="'empty-banker-'+i">
+              </div>
             </div>
           </div>
           
@@ -186,6 +219,12 @@ export default {
       showCustomInput: false,
       customChipValue: '',
       isCustomChip: false,
+      deck: [],
+      playerCards: [],
+      bankerCards: [],
+      playerScore: 0,
+      bankerScore: 0,
+      gameResult: '',
       chipColors: {
         100: { background: '#5DA5DA', border: '#4A90E2' },
         200: { background: '#FAA43A', border: '#E67E22' },
@@ -261,21 +300,6 @@ export default {
       // 清空当前下注
       this.currentBets = [];
     },
-    startDealing() {
-      if (this.currentBets.length === 0) return;
-      
-      this.isDealing = true;
-      
-      // 模拟发牌过程
-      setTimeout(() => {
-        // 这里将来会添加实际的发牌和结算逻辑
-        
-        this.isDealing = false;
-        
-        // 清空当前下注（实际游戏中会根据输赢情况结算）
-        this.currentBets = [];
-      }, 3000);
-    },
     getBetTypeName(type) {
       switch(type) {
         case 'player': return '闲家';
@@ -307,6 +331,206 @@ export default {
       } else {
         alert('请输入有效金额（不超过当前余额）');
       }
+    },
+    initializeDeck() {
+      const suits = ['Heart', 'Diamond', 'Club', 'Spade'];
+      const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+      let deck = [];
+      
+      // 使用8副牌
+      for (let i = 0; i < 8; i++) {
+        for (const suit of suits) {
+          for (const value of values) {
+            deck.push({ suit, value });
+          }
+        }
+      }
+      
+      // 洗牌
+      for (let i = deck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deck[i], deck[j]] = [deck[j], deck[i]];
+      }
+      
+      this.deck = deck;
+    },
+    calculateScore(cards) {
+      let score = 0;
+      for (const card of cards) {
+        if (card.value === 'A') {
+          score += 1;
+        } else if (['10', 'J', 'Q', 'K'].includes(card.value)) {
+          score += 0;
+        } else {
+          score += parseInt(card.value);
+        }
+      }
+      return score % 10;
+    },
+    needThirdCard(score, isPlayer, bankerScore = 0, playerThirdCard = null) {
+      if (isPlayer) {
+        // 闲家补牌规则
+        return score <= 5;
+      } else {
+        // 庄家补牌规则
+        if (score >= 7) return false;
+        if (score <= 2) return true;
+        
+        if (playerThirdCard === null) {
+          // 闲家没有补牌
+          return score <= 5;
+        }
+        
+        // 根据闲家补牌和庄家点数决定是否补牌
+        const playerThirdValue = parseInt(playerThirdCard.value) || 
+                               (playerThirdCard.value === 'A' ? 1 : 0);
+        
+        switch(bankerScore) {
+          case 3: return playerThirdValue !== 8;
+          case 4: return ![0, 1, 8, 9].includes(playerThirdValue);
+          case 5: return ![0, 1, 2, 3, 8, 9].includes(playerThirdValue);
+          case 6: return [6, 7].includes(playerThirdValue);
+          default: return false;
+        }
+      }
+    },
+    async startDealing() {
+      if (this.currentBets.length === 0 || this.isDealing) return;
+      
+      try {
+        this.isDealing = true;
+        this.playerCards = [];
+        this.bankerCards = [];
+        this.gameResult = '';
+        
+        // 初始化牌堆
+        this.initializeDeck();
+        
+        // 发前两张牌
+        await this.dealInitialCards();
+        
+        // 计算初始点数
+        this.playerScore = this.calculateScore(this.playerCards);
+        this.bankerScore = this.calculateScore(this.bankerCards);
+        
+        // 判断是否需要补牌
+        await this.handleThirdCard();
+        
+        // 计算最终点数
+        this.playerScore = this.calculateScore(this.playerCards);
+        this.bankerScore = this.calculateScore(this.bankerCards);
+        
+        // 判断胜负
+        this.determineWinner();
+        
+        // 结算
+        await this.sleep(1000); // 等待一秒显示结果
+        this.settleBets();
+        
+      } catch (error) {
+        console.error('发牌过程出错:', error);
+      } finally {
+        this.isDealing = false;
+      }
+    },
+    async dealInitialCards() {
+      // 闲家第一张
+      const playerCard1 = this.deck.pop();
+      this.playerCards.push(playerCard1);
+      await this.sleep(500);
+      
+      // 庄家第一张
+      const bankerCard1 = this.deck.pop();
+      this.bankerCards.push(bankerCard1);
+      await this.sleep(500);
+      
+      // 闲家第二张
+      const playerCard2 = this.deck.pop();
+      this.playerCards.push(playerCard2);
+      await this.sleep(500);
+      
+      // 庄家第二张
+      const bankerCard2 = this.deck.pop();
+      this.bankerCards.push(bankerCard2);
+      await this.sleep(500);
+    },
+    async handleThirdCard() {
+      let playerThirdCard = null;
+      
+      // 闲家补牌
+      if (this.needThirdCard(this.playerScore, true)) {
+        playerThirdCard = this.deck.pop();
+        this.playerCards.push(playerThirdCard);
+        await this.sleep(500);
+      }
+      
+      // 庄家补牌
+      if (this.needThirdCard(this.bankerScore, false, this.playerScore, playerThirdCard)) {
+        const bankerThirdCard = this.deck.pop();
+        this.bankerCards.push(bankerThirdCard);
+        await this.sleep(500);
+      }
+    },
+    determineWinner() {
+      if (this.playerScore === this.bankerScore) {
+        this.gameResult = 'tie';
+      } else if (this.playerScore > this.bankerScore) {
+        this.gameResult = 'player';
+      } else {
+        this.gameResult = 'banker';
+      }
+    },
+    settleBets() {
+      let totalWin = 0;
+      
+      for (const bet of this.currentBets) {
+        let winAmount = 0;
+        
+        switch(bet.type) {
+          case 'player':
+            if (this.gameResult === 'player') winAmount = bet.amount;
+            break;
+          case 'banker':
+            if (this.gameResult === 'banker') winAmount = bet.amount * 0.95;
+            break;
+          case 'tie':
+            if (this.gameResult === 'tie') winAmount = bet.amount * 8;
+            break;
+          case 'playerPair':
+            if (this.isCardPair(this.playerCards)) winAmount = bet.amount * 11;
+            break;
+          case 'bankerPair':
+            if (this.isCardPair(this.bankerCards)) winAmount = bet.amount * 11;
+            break;
+          case 'luckySix':
+            if (this.gameResult === 'banker' && this.bankerScore === 6) {
+              winAmount = this.bankerCards.length === 2 ? bet.amount * 12 : bet.amount * 20;
+            }
+            break;
+        }
+        
+        if (winAmount > 0) {
+          totalWin += winAmount + bet.amount;
+        }
+      }
+      
+      // 更新余额
+      this.userBalance += totalWin;
+      this.updateUserBalance();
+      
+      // 清空当前下注
+      this.currentBets = [];
+    },
+    isCardPair(cards) {
+      if (cards.length < 2) return false;
+      return cards[0].value === cards[1].value;
+    },
+    sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    },
+    getCardImage(card) {
+      if (!card) return '';
+      return require(`@/assets/cards/${card.suit}${card.value}.png`);
     }
   },
   mounted() {
@@ -316,6 +540,9 @@ export default {
     if (currentUser) {
       this.userBalance = currentUser.balance
     }
+    
+    // 初始化牌堆
+    this.initializeDeck();
   }
 }
 </script>
@@ -479,6 +706,23 @@ h1 {
   border-radius: 5px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
+  transform-origin: center center;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: dealCard 0.5s ease forwards;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .card-slot:hover {
@@ -501,6 +745,9 @@ h1 {
   border-radius: 30px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .player-area .area-label {
@@ -959,5 +1206,98 @@ h1 {
 .custom-amount-input button:hover {
   transform: translateY(-2px);
   box-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
+}
+
+.card-slot {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-slot.empty {
+  opacity: 0.2;
+}
+
+.card-slot.third-card {
+  margin-left: 10px;
+  position: relative;
+  top: -20px;
+}
+
+.game-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.status-text {
+  font-size: 2rem;
+  font-weight: bold;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #00ff88;
+  animation: pulse 1s ease infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; transform: scale(0.98); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0.6; transform: scale(0.98); }
+}
+
+.game-result {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+.result-text {
+  font-size: 2.5rem;
+  font-weight: bold;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  animation: fadeIn 0.5s ease;
+}
+
+.result-text.player {
+  color: #4a7aff;
+  text-shadow: 0 0 10px rgba(74, 122, 255, 0.5);
+}
+
+.result-text.banker {
+  color: #ff4444;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.result-text.tie {
+  color: #00ff88;
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes dealCard {
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 </style> 
