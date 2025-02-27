@@ -123,11 +123,25 @@
               <span class="balance-value">￥{{ userBalance }}</span>
             </div>
             <div class="chips-rack">
-              <div class="chip" :class="{ active: selectedChipValue === 10 }" @click="selectChip(10)">10</div>
-              <div class="chip" :class="{ active: selectedChipValue === 50 }" @click="selectChip(50)">50</div>
               <div class="chip" :class="{ active: selectedChipValue === 100 }" @click="selectChip(100)">100</div>
+              <div class="chip" :class="{ active: selectedChipValue === 200 }" @click="selectChip(200)">200</div>
               <div class="chip" :class="{ active: selectedChipValue === 500 }" @click="selectChip(500)">500</div>
               <div class="chip" :class="{ active: selectedChipValue === 1000 }" @click="selectChip(1000)">1000</div>
+              <div class="chip custom-chip" :class="{ active: isCustomChip }" @click="showCustomChipInput">
+                自定义
+              </div>
+            </div>
+            <!-- 自定义金额输入框 -->
+            <div v-if="showCustomInput" class="custom-amount-input">
+              <input 
+                type="number" 
+                v-model="customChipValue"
+                min="1"
+                :max="userBalance"
+                placeholder="输入金额"
+                @keyup.enter="confirmCustomAmount"
+              >
+              <button @click="confirmCustomAmount">确定</button>
             </div>
           </div>
           
@@ -166,13 +180,15 @@ export default {
     return {
       userBalance: 0,
       username: localStorage.getItem('currentUser'),
-      selectedChipValue: 10,
+      selectedChipValue: 100,
       currentBets: [],
       isDealing: false,
+      showCustomInput: false,
+      customChipValue: '',
+      isCustomChip: false,
       chipColors: {
-        10: { background: '#5DA5DA', border: '#4A90E2' },
-        50: { background: '#FAA43A', border: '#E67E22' },
-        100: { background: '#60BD68', border: '#2ECC71' },
+        100: { background: '#5DA5DA', border: '#4A90E2' },
+        200: { background: '#FAA43A', border: '#E67E22' },
         500: { background: '#F17CB0', border: '#E84393' },
         1000: { background: '#B276B2', border: '#8E44AD' }
       }
@@ -192,9 +208,11 @@ export default {
     selectChip(value) {
       if (this.isDealing) return;
       this.selectedChipValue = value;
+      this.isCustomChip = false;
+      this.showCustomInput = false;
     },
     getChipStyle(amount) {
-      const color = this.chipColors[amount] || this.chipColors[10];
+      const color = this.chipColors[amount] || this.chipColors[100];
       return {
         backgroundColor: color.background,
         borderColor: color.border
@@ -274,6 +292,20 @@ export default {
       if (users[this.username]) {
         users[this.username].balance = this.userBalance;
         localStorage.setItem('users', JSON.stringify(users));
+      }
+    },
+    showCustomChipInput() {
+      if (this.isDealing) return;
+      this.showCustomInput = true;
+      this.isCustomChip = true;
+    },
+    confirmCustomAmount() {
+      const amount = parseInt(this.customChipValue);
+      if (amount && amount > 0 && amount <= this.userBalance) {
+        this.selectedChipValue = amount;
+        this.showCustomInput = false;
+      } else {
+        alert('请输入有效金额（不超过当前余额）');
       }
     }
   },
@@ -607,14 +639,14 @@ h1 {
 }
 
 .chip:nth-child(3) {
-  background-color: #60BD68;
-  border-color: #2ECC71;
+  background-color: #F17CB0;
+  border-color: #E84393;
   color: white;
 }
 
 .chip:nth-child(4) {
-  background-color: #F17CB0;
-  border-color: #E84393;
+  background-color: #B276B2;
+  border-color: #8E44AD;
   color: white;
 }
 
@@ -869,5 +901,63 @@ h1 {
   .player-area, .banker-area {
     margin-bottom: 0;
   }
+}
+
+/* 筹码样式更新 */
+.chips-rack {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.custom-chip {
+  background: linear-gradient(135deg, #2c3e50, #3498db) !important;
+  border-color: #2980b9 !important;
+  font-size: 0.9rem;
+}
+
+.custom-amount-input {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.custom-amount-input input {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  width: 120px;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+/* 为Firefox特别处理 */
+.custom-amount-input input::-webkit-outer-spin-button,
+.custom-amount-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.custom-amount-input input:focus {
+  outline: none;
+  border-color: #00ff88;
+}
+
+.custom-amount-input button {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: none;
+  background: #00ff88;
+  color: #1a1a2e;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.custom-amount-input button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 255, 136, 0.3);
 }
 </style> 
