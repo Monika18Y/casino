@@ -27,11 +27,6 @@
         
         <!-- 游戏桌面 -->
         <div class="table-area">
-          <!-- 游戏状态显示 -->
-          <div class="game-status" v-if="isDealing">
-            <div class="status-text">发牌中...</div>
-          </div>
-          
           <!-- 游戏结果显示 -->
           <div class="game-result" v-if="gameResult && !isDealing">
             <div class="result-text" :class="gameResult">
@@ -40,11 +35,21 @@
             </div>
           </div>
           
-          <!-- 补牌区域 - 放在中上部 -->
+          <!-- 补牌区域 -->
           <div class="extra-cards-area">
             <div class="extra-card-slots">
-              <div class="card-slot"></div>
-              <div class="card-slot"></div>
+              <div class="card-slot" :class="{ empty: !extraCardState.leftSlot }">
+                <img v-if="extraCardState.leftSlot" 
+                     src="@/assets/cards/Back.png" 
+                     alt="Back" 
+                     class="card-image">
+              </div>
+              <div class="card-slot" :class="{ empty: !extraCardState.rightSlot }">
+                <img v-if="extraCardState.rightSlot" 
+                     src="@/assets/cards/Back.png" 
+                     alt="Back" 
+                     class="card-image">
+              </div>
             </div>
           </div>
           
@@ -52,19 +57,24 @@
           <div class="player-area">
             <div class="area-label">闲 {{ playerScore }}</div>
             <div class="card-area">
-              <div v-for="(card, index) in playerCards" 
-                   :key="'player-'+index"
-                   class="card-slot"
-                   :class="{'third-card': index === 2}">
-                <img :src="getCardImage(card)" 
-                     :alt="card.value" 
-                     class="card-image"
-                     :style="{'animation-delay': index * 0.5 + 's'}">
+              <!-- 前两个卡槽 -->
+              <div class="card-slot" v-for="i in 2" :key="'player-'+i">
+                <img v-if="playerCards[i-1]"
+                     :src="getCardImage(playerCards[i-1])" 
+                     :alt="playerCards[i-1].value" 
+                     class="card-image">
+                <img v-else
+                     src="@/assets/cards/Back.png"
+                     alt="Back"
+                     class="card-image">
               </div>
-              <div class="card-slot empty" 
-                   v-for="i in (3 - playerCards.length)" 
-                   :key="'empty-player-'+i">
+              <!-- 第三个卡槽 -->
+              <div class="card-slot third-card" v-if="playerCards.length > 2">
+                <img :src="getCardImage(playerCards[2])" 
+                     :alt="playerCards[2].value" 
+                     class="card-image">
               </div>
+              <div class="card-slot third-card empty" v-else></div>
             </div>
           </div>
           
@@ -72,19 +82,24 @@
           <div class="banker-area">
             <div class="area-label">庄 {{ bankerScore }}</div>
             <div class="card-area">
-              <div v-for="(card, index) in bankerCards" 
-                   :key="'banker-'+index"
-                   class="card-slot"
-                   :class="{'third-card': index === 2}">
-                <img :src="getCardImage(card)" 
-                     :alt="card.value" 
-                     class="card-image"
-                     :style="{'animation-delay': (index * 0.5 + 0.25) + 's'}">
+              <!-- 前两个卡槽 -->
+              <div class="card-slot" v-for="i in 2" :key="'banker-'+i">
+                <img v-if="bankerCards[i-1]"
+                     :src="getCardImage(bankerCards[i-1])" 
+                     :alt="bankerCards[i-1].value" 
+                     class="card-image">
+                <img v-else
+                     src="@/assets/cards/Back.png"
+                     alt="Back"
+                     class="card-image">
               </div>
-              <div class="card-slot empty" 
-                   v-for="i in (3 - bankerCards.length)" 
-                   :key="'empty-banker-'+i">
+              <!-- 第三个卡槽 -->
+              <div class="card-slot third-card" v-if="bankerCards.length > 2">
+                <img :src="getCardImage(bankerCards[2])" 
+                     :alt="bankerCards[2].value" 
+                     class="card-image">
               </div>
+              <div class="card-slot third-card empty" v-else></div>
             </div>
           </div>
           
@@ -230,6 +245,10 @@ export default {
         200: { background: '#FAA43A', border: '#E67E22' },
         500: { background: '#F17CB0', border: '#E84393' },
         1000: { background: '#B276B2', border: '#8E44AD' }
+      },
+      extraCardState: {
+        leftSlot: true,
+        rightSlot: true
       }
     }
   },
@@ -402,6 +421,9 @@ export default {
         this.playerCards = [];
         this.bankerCards = [];
         this.gameResult = '';
+        // 重置补牌区状态
+        this.extraCardState.leftSlot = true;
+        this.extraCardState.rightSlot = true;
         
         // 初始化牌堆
         this.initializeDeck();
@@ -424,7 +446,7 @@ export default {
         this.determineWinner();
         
         // 结算
-        await this.sleep(1000); // 等待一秒显示结果
+        await this.sleep(50); // 等待时间
         this.settleBets();
         
       } catch (error) {
@@ -437,21 +459,25 @@ export default {
       // 闲家第一张
       const playerCard1 = this.deck.pop();
       this.playerCards.push(playerCard1);
-      await this.sleep(500);
+      this.playerScore = this.calculateScore(this.playerCards);
+      await this.sleep(300);
       
       // 庄家第一张
       const bankerCard1 = this.deck.pop();
       this.bankerCards.push(bankerCard1);
-      await this.sleep(500);
+      this.bankerScore = this.calculateScore(this.bankerCards);
+      await this.sleep(300);
       
       // 闲家第二张
       const playerCard2 = this.deck.pop();
       this.playerCards.push(playerCard2);
-      await this.sleep(500);
+      this.playerScore = this.calculateScore(this.playerCards);
+      await this.sleep(300);
       
       // 庄家第二张
       const bankerCard2 = this.deck.pop();
       this.bankerCards.push(bankerCard2);
+      this.bankerScore = this.calculateScore(this.bankerCards);
       await this.sleep(500);
     },
     async handleThirdCard() {
@@ -459,16 +485,28 @@ export default {
       
       // 闲家补牌
       if (this.needThirdCard(this.playerScore, true)) {
+        // 先清空左侧补牌槽
+        this.extraCardState.leftSlot = false;
+        await this.sleep(300);
+        
+        // 发第三张牌给闲家
         playerThirdCard = this.deck.pop();
         this.playerCards.push(playerThirdCard);
-        await this.sleep(500);
+        this.playerScore = this.calculateScore(this.playerCards);
+        await this.sleep(800);
       }
       
       // 庄家补牌
       if (this.needThirdCard(this.bankerScore, false, this.playerScore, playerThirdCard)) {
+        // 先清空右侧补牌槽
+        this.extraCardState.rightSlot = false;
+        await this.sleep(300);
+        
+        // 发第三张牌给庄家
         const bankerThirdCard = this.deck.pop();
         this.bankerCards.push(bankerThirdCard);
-        await this.sleep(500);
+        this.bankerScore = this.calculateScore(this.bankerCards);
+        await this.sleep(800);
       }
     },
     determineWinner() {
@@ -718,11 +756,10 @@ h1 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  animation: dealCard 0.5s ease forwards;
-  opacity: 0;
   position: absolute;
   top: 0;
   left: 0;
+  transition: transform 0.3s ease;
 }
 
 .card-slot:hover {
@@ -734,6 +771,27 @@ h1 {
   margin-left: 10px;
   position: relative;
   top: -20px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.third-card .card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: none;
+  transition: transform 0.3s ease;
+}
+
+.card-slot.third-card.empty {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  opacity: 0.7;
 }
 
 .area-label {
@@ -779,6 +837,14 @@ h1 {
   opacity: 0.8;
   border: 1px solid rgba(255, 255, 255, 0.5);
   background: rgba(255, 255, 255, 0.15);
+  transition: all 0.5s ease; /* 增加过渡时间 */
+}
+
+.extra-card-slots .card-slot.empty {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.5;
+  transform: scale(0.95); /* 添加缩放效果 */
 }
 
 /* 下注区域 - 2x3布局 */
@@ -1214,37 +1280,35 @@ h1 {
 }
 
 .card-slot.empty {
-  opacity: 0.2;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
 }
 
 .card-slot.third-card {
   margin-left: 10px;
   position: relative;
   top: -20px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.game-status {
+.third-card .card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10;
+  top: 0;
+  left: 0;
+  transform: none;
+  transition: transform 0.3s ease;
 }
 
-.status-text {
-  font-size: 2rem;
-  font-weight: bold;
-  padding: 1rem 2rem;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #00ff88;
-  animation: pulse 1s ease infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 0.6; transform: scale(0.98); }
-  50% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0.6; transform: scale(0.98); }
+.card-slot.third-card.empty {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  opacity: 0.7;
 }
 
 .game-result {
@@ -1282,7 +1346,7 @@ h1 {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: scale(0.8);
+    transform: scale(0.9);
   }
   to {
     opacity: 1;
