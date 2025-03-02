@@ -20,8 +20,19 @@
       <div class="baccarat-table">
         <!-- 荷官区域 -->
         <div class="dealer-area">
+          <div class="countdown-box">
+            <div class="countdown-text">{{ isDealing ? '开牌中' : '距离下一局还有' }}</div>
+            <div class="countdown-number" v-if="!isDealing">{{ countdown }}s</div>
+            <div class="dealing-text" v-else>
+              <span class="dot-animation">...</span>
+            </div>
+          </div>
           <div class="dealer-box">
             <h3>荷官</h3>
+          </div>
+          <div class="deck-count-box">
+            <div class="deck-count-label">剩余牌数</div>
+            <div class="deck-count-number">{{ deckCount }}</div>
           </div>
         </div>
         
@@ -196,17 +207,17 @@
           <div class="action-buttons">
             <button 
               class="cancel-btn"
-              :disabled="isDealing || currentBets.length === 0"
+              :disabled="isDealing || currentBets.length === 0 || betsConfirmed"
               @click="cancelBets"
             >
               撤销下注
             </button>
             <button 
               class="deal-btn"
-              :disabled="isDealing || currentBets.length === 0"
-              @click="startDealing"
+              :disabled="isDealing || currentBets.length === 0 || betsConfirmed"
+              @click="confirmBets"
             >
-              发牌
+              {{ betsConfirmed ? '已确认下注' : '确认下注' }}
             </button>
           </div>
         </div>
@@ -235,6 +246,7 @@ export default {
       customChipValue: '',
       isCustomChip: false,
       deck: [],
+      deckCount: 416, // 8副牌，每副52张，总共416张
       playerCards: [],
       bankerCards: [],
       playerScore: 0,
@@ -249,7 +261,11 @@ export default {
       extraCardState: {
         leftSlot: true,
         rightSlot: true
-      }
+      },
+      countdown: 10,
+      betsConfirmed: false,
+      countdownTimer: null,
+      canStartNewRound: true
     }
   },
   computed: {
@@ -284,7 +300,7 @@ export default {
       return bets.reduce((total, bet) => total + bet.amount, 0);
     },
     placeBetOnZone(type) {
-      if (this.isDealing || !this.canPlaceBet) return;
+      if (this.isDealing || !this.canPlaceBet || this.betsConfirmed) return;
       
       // 检查余额是否足够
       if (this.selectedChipValue > this.userBalance) {
@@ -304,7 +320,7 @@ export default {
       this.updateUserBalance();
     },
     cancelBets() {
-      if (this.isDealing || this.currentBets.length === 0) return;
+      if (this.isDealing || this.currentBets.length === 0 || this.betsConfirmed) return;
       
       // 计算需要返还的总金额
       let totalRefund = 0;
@@ -372,6 +388,7 @@ export default {
       }
       
       this.deck = deck;
+      this.deckCount = deck.length; // 更新卡池数量
     },
     calculateScore(cards) {
       let score = 0;
@@ -414,10 +431,11 @@ export default {
       }
     },
     async startDealing() {
-      if (this.currentBets.length === 0 || this.isDealing) return;
+      if (this.isDealing || !this.canStartNewRound) return;
       
       try {
         this.isDealing = true;
+        this.canStartNewRound = false;
         this.playerCards = [];
         this.bankerCards = [];
         this.gameResult = '';
@@ -425,8 +443,10 @@ export default {
         this.extraCardState.leftSlot = true;
         this.extraCardState.rightSlot = true;
         
-        // 初始化牌堆
-        this.initializeDeck();
+        // 检查卡池是否需要重新洗牌（当剩余牌数小于等于6张时）
+        if (this.deckCount <= 6) {
+          this.initializeDeck();
+        }
         
         // 发前两张牌
         await this.dealInitialCards();
@@ -446,37 +466,46 @@ export default {
         this.determineWinner();
         
         // 结算
-        await this.sleep(50); // 等待时间
+        await this.sleep(50);
         this.settleBets();
+        
+        // 重置下注状态
+        this.betsConfirmed = false;
         
       } catch (error) {
         console.error('发牌过程出错:', error);
       } finally {
         this.isDealing = false;
+        this.canStartNewRound = true;
+        this.startNewRound();
       }
     },
     async dealInitialCards() {
       // 闲家第一张
       const playerCard1 = this.deck.pop();
       this.playerCards.push(playerCard1);
+      this.deckCount = this.deck.length; // 更新卡池数量
       this.playerScore = this.calculateScore(this.playerCards);
       await this.sleep(300);
       
       // 庄家第一张
       const bankerCard1 = this.deck.pop();
       this.bankerCards.push(bankerCard1);
+      this.deckCount = this.deck.length; // 更新卡池数量
       this.bankerScore = this.calculateScore(this.bankerCards);
       await this.sleep(300);
       
       // 闲家第二张
       const playerCard2 = this.deck.pop();
       this.playerCards.push(playerCard2);
+      this.deckCount = this.deck.length; // 更新卡池数量
       this.playerScore = this.calculateScore(this.playerCards);
       await this.sleep(300);
       
       // 庄家第二张
       const bankerCard2 = this.deck.pop();
       this.bankerCards.push(bankerCard2);
+      this.deckCount = this.deck.length; // 更新卡池数量
       this.bankerScore = this.calculateScore(this.bankerCards);
       await this.sleep(500);
     },
@@ -485,26 +514,24 @@ export default {
       
       // 闲家补牌
       if (this.needThirdCard(this.playerScore, true)) {
-        // 先清空左侧补牌槽
         this.extraCardState.leftSlot = false;
         await this.sleep(300);
         
-        // 发第三张牌给闲家
         playerThirdCard = this.deck.pop();
         this.playerCards.push(playerThirdCard);
+        this.deckCount = this.deck.length; // 更新卡池数量
         this.playerScore = this.calculateScore(this.playerCards);
         await this.sleep(800);
       }
       
       // 庄家补牌
       if (this.needThirdCard(this.bankerScore, false, this.playerScore, playerThirdCard)) {
-        // 先清空右侧补牌槽
         this.extraCardState.rightSlot = false;
         await this.sleep(300);
         
-        // 发第三张牌给庄家
         const bankerThirdCard = this.deck.pop();
         this.bankerCards.push(bankerThirdCard);
+        this.deckCount = this.deck.length; // 更新卡池数量
         this.bankerScore = this.calculateScore(this.bankerCards);
         await this.sleep(800);
       }
@@ -569,6 +596,41 @@ export default {
     getCardImage(card) {
       if (!card) return '';
       return require(`@/assets/cards/${card.suit}${card.value}.png`);
+    },
+    confirmBets() {
+      if (this.isDealing || this.currentBets.length === 0 || this.betsConfirmed) return;
+      this.betsConfirmed = true;
+    },
+    startNewRound() {
+      this.countdown = 10;
+      if (this.countdownTimer) {
+        clearInterval(this.countdownTimer);
+      }
+      
+      this.countdownTimer = setInterval(() => {
+        if (this.isDealing) return;
+        
+        if (this.countdown > 0) {
+          this.countdown--;
+          
+          // 在倒计时5秒时清理牌桌
+          if (this.countdown === 5) {
+            this.playerCards = [];
+            this.bankerCards = [];
+            this.playerScore = 0;
+            this.bankerScore = 0;
+            this.gameResult = '';
+            this.extraCardState = {
+              leftSlot: true,
+              rightSlot: true
+            };
+          }
+        }
+        
+        if (this.countdown === 0 && this.canStartNewRound) {
+          this.startDealing();
+        }
+      }, 1000);
     }
   },
   mounted() {
@@ -581,6 +643,15 @@ export default {
     
     // 初始化牌堆
     this.initializeDeck();
+    
+    // 开始第一轮倒计时
+    this.startNewRound();
+  },
+  beforeUnmount() {
+    // 清除定时器
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+    }
   }
 }
 </script>
@@ -685,7 +756,54 @@ h1 {
   width: 100%;
   display: flex;
   justify-content: center;
+  align-items: center;
   margin-bottom: 1rem;
+}
+
+.countdown-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-right: 2rem;
+  text-align: center;
+  min-width: 150px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.countdown-text {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+}
+
+.countdown-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #00ff88;
+}
+
+.dealing-text {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ff4444;
+  height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dot-animation {
+  animation: dotAnimation 1.5s infinite;
+}
+
+@keyframes dotAnimation {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
 }
 
 .dealer-box {
@@ -697,6 +815,32 @@ h1 {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.deck-count-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-left: 2rem;
+  text-align: center;
+  min-width: 150px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.deck-count-label {
+  font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 0.5rem;
+}
+
+.deck-count-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #ffd700;
 }
 
 .table-area {
@@ -1078,8 +1222,8 @@ h1 {
 .deal-btn {
   flex: 1;
   padding: 1rem;
-  background: #ff4444;
-  color: white;
+  background: #00ff88;
+  color: #1a1a2e;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -1087,14 +1231,18 @@ h1 {
   transition: all 0.3s ease;
 }
 
-.deal-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.2);
+.deal-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
-.deal-btn:disabled {
+.deal-btn:disabled:not(.bets-confirmed) {
   opacity: 0.5;
-  cursor: not-allowed;
+}
+
+.deal-btn[disabled]:hover {
+  transform: none;
 }
 
 /* 响应式设计 */
@@ -1139,6 +1287,16 @@ h1 {
   
   .player-area, .banker-area {
     margin-bottom: 70px;
+  }
+  
+  .deck-count-box {
+    min-width: 120px;
+    min-height: 70px;
+    margin-left: 1rem;
+  }
+  
+  .deck-count-number {
+    font-size: 1.5rem;
   }
 }
 
@@ -1213,6 +1371,22 @@ h1 {
   
   .player-area, .banker-area {
     margin-bottom: 0;
+  }
+  
+  .dealer-area {
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .deck-count-box {
+    margin-left: 0;
+    min-width: 100px;
+    min-height: 60px;
+  }
+  
+  .deck-count-number {
+    font-size: 1.2rem;
   }
 }
 
