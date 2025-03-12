@@ -222,12 +222,58 @@
           </div>
         </div>
       </div>
+
+      <!-- 添加投注记录板块 -->
+      <div class="bet-history-section">
+        <div class="section-header">
+          <h2>投注记录</h2>
+          <router-link to="/betting-history" class="view-more">
+            查看更多
+            <span class="arrow">→</span>
+          </router-link>
+        </div>
+        <div class="history-list">
+          <div class="history-header">
+            <span>时间</span>
+            <span>投注项</span>
+            <span>点数</span>
+            <span>结果</span>
+          </div>
+          <div v-if="displayHistory.length === 0" class="no-records">
+            暂无投注记录
+          </div>
+          <div v-else v-for="record in displayHistory" :key="record.id" class="history-item">
+            <span class="time">{{ record.time }}</span>
+            <span class="bet-type">{{ record.betType }}</span>
+            <div class="cards-display">
+              <div class="player-cards">
+                <span class="cards-label">闲:</span>
+                <span class="card-value" v-for="(card, index) in formatCards(record.playerCards)" :key="'p'+index">
+                  {{ getCardEmoji(card.suit) }}{{ card.value }}
+                </span>
+                <span class="score">({{ calculateDisplayScore(record.playerCards) }})</span>
+              </div>
+              <div class="banker-cards">
+                <span class="cards-label">庄:</span>
+                <span class="card-value" v-for="(card, index) in formatCards(record.bankerCards)" :key="'b'+index">
+                  {{ getCardEmoji(card.suit) }}{{ card.value }}
+                </span>
+                <span class="score">({{ calculateDisplayScore(record.bankerCards) }})</span>
+              </div>
+            </div>
+            <span :class="['result', record.profit > 0 ? 'win' : record.profit < 0 ? 'lose' : 'tie']">
+              {{ record.profit > 0 ? '+' : ''}}{{ record.profit }}
+            </span>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
 
 <script>
 import { useRouter } from 'vue-router'
+import { getBetHistory, addBetHistory } from '@/utils/betHistory'
 
 export default {
   name: 'BaccaratGame',
@@ -265,7 +311,8 @@ export default {
       countdown: 10,
       betsConfirmed: false,
       countdownTimer: null,
-      canStartNewRound: true
+      canStartNewRound: true,
+      betHistory: []
     }
   },
   computed: {
@@ -273,6 +320,9 @@ export default {
       return !this.isDealing && 
              this.selectedChipValue > 0 && 
              this.selectedChipValue <= this.userBalance
+    },
+    displayHistory() {
+      return this.betHistory.slice(0, 10)
     }
   },
   methods: {
@@ -448,6 +498,22 @@ export default {
           this.initializeDeck();
         }
         
+        // 检查是否已确认下注
+        if (this.currentBets.length > 0 && !this.betsConfirmed) {
+          // 如果有下注但未确认，则返还筹码
+          let totalRefund = 0;
+          this.currentBets.forEach(bet => {
+            totalRefund += bet.amount;
+          });
+          
+          // 返还金额到用户余额
+          this.userBalance += totalRefund;
+          this.updateUserBalance();
+          
+          // 清空当前下注
+          this.currentBets = [];
+        }
+        
         // 发前两张牌
         await this.dealInitialCards();
         
@@ -546,7 +612,10 @@ export default {
       }
     },
     settleBets() {
+      if (this.currentBets.length === 0) return;
+      
       let totalWin = 0;
+      const betResults = [];
       
       for (const bet of this.currentBets) {
         let winAmount = 0;
@@ -577,11 +646,33 @@ export default {
         if (winAmount > 0) {
           totalWin += winAmount + bet.amount;
         }
+        
+        betResults.push({
+          type: bet.type,
+          amount: bet.amount,
+          win: winAmount
+        });
       }
       
       // 更新余额
       this.userBalance += totalWin;
       this.updateUserBalance();
+      
+      // 添加投注记录
+      const profit = totalWin - this.currentBets.reduce((sum, bet) => sum + bet.amount, 0);
+      
+      addBetHistory({
+        game: 'Baccarat',
+        betType: this.currentBets.map(bet => this.getBetTypeName(bet.type)).join(', '),
+        amount: this.currentBets.reduce((sum, bet) => sum + bet.amount, 0),
+        profit: profit,
+        playerCards: this.playerCards.map(card => `${card.suit}${card.value}`).join(','),
+        bankerCards: this.bankerCards.map(card => `${card.suit}${card.value}`).join(','),
+        result: this.gameResult
+      });
+      
+      // 更新本地投注历史
+      this.betHistory = getBetHistory().filter(record => record.game === 'Baccarat');
       
       // 清空当前下注
       this.currentBets = [];
@@ -625,12 +716,76 @@ export default {
               rightSlot: true
             };
           }
+          
+          // 在倒计时3秒时提醒玩家确认下注
+          if (this.countdown === 3 && this.currentBets.length > 0 && !this.betsConfirmed) {
+            // 可以添加一个视觉提示，比如闪烁确认按钮
+            this.flashConfirmButton();
+          }
         }
         
         if (this.countdown === 0 && this.canStartNewRound) {
           this.startDealing();
         }
       }, 1000);
+    },
+    // 添加一个方法来闪烁确认按钮
+    flashConfirmButton() {
+      const dealBtn = document.querySelector('.deal-btn');
+      if (dealBtn) {
+        dealBtn.classList.add('flash-animation');
+        setTimeout(() => {
+          dealBtn.classList.remove('flash-animation');
+        }, 2000);
+      }
+    },
+    getCardEmoji(suit) {
+      switch(suit) {
+        case 'Heart': return '♥️';
+        case 'Diamond': return '♦️';
+        case 'Club': return '♣️';
+        case 'Spade': return '♠️';
+        default: return suit;
+      }
+    },
+    formatCards(cardsString) {
+      if (!cardsString) return [];
+      
+      const cards = cardsString.split(',');
+      return cards.map(card => {
+        // 修改正则表达式以正确提取花色和点数
+        const match = card.match(/^([A-Za-z]+)([0-9AJQK]+)$/);
+        if (!match) return { suit: '', value: '' };
+        
+        return {
+          suit: match[1],
+          value: match[2]
+        };
+      });
+    },
+    calculateDisplayScore(cardsString) {
+      if (!cardsString) return 0;
+      
+      const cards = cardsString.split(',');
+      let score = 0;
+      
+      for (const card of cards) {
+        // 使用与formatCards相同的正则表达式提取值
+        const match = card.match(/^([A-Za-z]+)([0-9AJQK]+)$/);
+        if (!match) continue;
+        
+        const value = match[2];
+        
+        if (value === 'A') {
+          score += 1;
+        } else if (['10', 'J', 'Q', 'K'].includes(value)) {
+          score += 0;
+        } else {
+          score += parseInt(value);
+        }
+      }
+      
+      return score % 10;
     }
   },
   mounted() {
@@ -646,6 +801,9 @@ export default {
     
     // 开始第一轮倒计时
     this.startNewRound();
+
+    // 初始化投注历史
+    this.betHistory = getBetHistory().filter(record => record.game === 'Baccarat');
   },
   beforeUnmount() {
     // 清除定时器
@@ -1536,6 +1694,205 @@ h1 {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* 添加投注记录相关样式 */
+.bet-history-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+  margin-bottom: 0;
+  color: #00ff88;
+}
+
+.view-more {
+  color: #00ff88;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.view-more:hover {
+  transform: translateX(5px);
+}
+
+.arrow {
+  transition: transform 0.3s ease;
+}
+
+.view-more:hover .arrow {
+  transform: translateX(3px);
+}
+
+.history-list {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.history-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  padding: 1rem;
+  background: rgba(0, 255, 136, 0.1);
+  font-weight: bold;
+  color: #00ff88;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.3s ease;
+  align-items: center;
+  text-align: center;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.time {
+  color: #aaa;
+}
+
+.bet-type {
+  color: white;
+}
+
+.amount {
+  color: #aaa;
+}
+
+.result {
+  font-weight: bold;
+}
+
+.win {
+  color: #00ff88;
+}
+
+.lose {
+  color: #ff4444;
+}
+
+.tie {
+  color: #aaa;
+}
+
+.no-records {
+  padding: 2rem;
+  text-align: center;
+  color: #aaa;
+}
+
+@media (max-width: 768px) {
+  .history-header {
+    display: none;
+  }
+
+  .history-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    text-align: left;
+    padding: 1rem;
+  }
+
+  .time::before {
+    content: "时间: ";
+    color: #00ff88;
+  }
+
+  .bet-type::before {
+    content: "投注: ";
+    color: #00ff88;
+  }
+
+  .cards-display::before {
+    content: "点数: ";
+    color: #00ff88;
+    align-self: flex-start;
+  }
+
+  .result::before {
+    content: "结果: ";
+    color: #00ff88;
+  }
+  
+  .player-cards, .banker-cards {
+    justify-content: flex-start;
+    margin-left: 1rem;
+  }
+}
+
+.cards-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.player-cards, .banker-cards {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cards-label {
+  font-weight: bold;
+  margin-right: 0.3rem;
+}
+
+.card-value {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  margin: 0 0.1rem;
+}
+
+.score {
+  color: #ffd700;
+  font-weight: bold;
+  margin-left: 0.3rem;
+}
+
+/* 添加闪烁按钮动画 */
+.flash-animation {
+  animation: flashButton 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes flashButton {
+  from {
+    box-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+    transform: scale(1);
+  }
+  to {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+    transform: scale(1.05);
   }
 }
 </style> 
