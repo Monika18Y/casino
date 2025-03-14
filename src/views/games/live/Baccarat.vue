@@ -27,8 +27,20 @@
               <span class="dot-animation">...</span>
             </div>
           </div>
-          <div class="dealer-box">
-            <h3>荷官</h3>
+          <div class="roadmap-box">
+            <h3>大路图</h3>
+            <div class="big-road">
+              <table>
+                <tbody>
+                  <tr v-for="row in 6" :key="'big-row-'+row">
+                    <td v-for="col in 12" :key="'big-cell-'+row+'-'+col" 
+                        :class="getBigRoadClass(row-1, col-1)">
+                      <span v-if="getBigRoadValue(row-1, col-1) === 'tie'" class="tie-dot"></span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
           <div class="deck-count-box">
             <div class="deck-count-label">剩余牌数</div>
@@ -312,7 +324,14 @@ export default {
       betsConfirmed: false,
       countdownTimer: null,
       canStartNewRound: true,
-      betHistory: []
+      betHistory: [],
+      // 路子图相关数据
+      showRoadmap: false,
+      gameResults: [], // 存储游戏结果的数组
+      bigRoad: [], // 大路
+      bigEyeRoad: [], // 大眼路
+      smallRoad: [], // 小路
+      cockroachRoad: [] // 蚂蚁路
     }
   },
   computed: {
@@ -538,6 +557,11 @@ export default {
         // 重置下注状态
         this.betsConfirmed = false;
         
+        // 无论是否下注，都更新路子图
+        if (this.gameResult) {
+          this.updateRoadmaps();
+        }
+        
       } catch (error) {
         console.error('发牌过程出错:', error);
       } finally {
@@ -612,7 +636,7 @@ export default {
       }
     },
     settleBets() {
-      if (this.currentBets.length === 0) return;
+      if (this.currentBets.length === 0 || !this.gameResult) return;
       
       let totalWin = 0;
       const betResults = [];
@@ -658,18 +682,22 @@ export default {
       this.userBalance += totalWin;
       this.updateUserBalance();
       
-      // 添加投注记录
+      // 计算利润
       const profit = totalWin - this.currentBets.reduce((sum, bet) => sum + bet.amount, 0);
       
-      addBetHistory({
-        game: 'Baccarat',
-        betType: this.currentBets.map(bet => this.getBetTypeName(bet.type)).join(', '),
-        amount: this.currentBets.reduce((sum, bet) => sum + bet.amount, 0),
-        profit: profit,
-        playerCards: this.playerCards.map(card => `${card.suit}${card.value}`).join(','),
-        bankerCards: this.bankerCards.map(card => `${card.suit}${card.value}`).join(','),
-        result: this.gameResult
-      });
+      // 确保所有必要的数据都存在才添加记录
+      if (this.playerCards.length > 0 && this.bankerCards.length > 0) {
+        addBetHistory({
+          game: 'Baccarat',
+          betType: this.currentBets.map(bet => this.getBetTypeName(bet.type)).join(', '),
+          amount: this.currentBets.reduce((sum, bet) => sum + bet.amount, 0),
+          profit: profit,
+          playerCards: this.playerCards.map(card => `${card.suit}${card.value}`).join(','),
+          bankerCards: this.bankerCards.map(card => `${card.suit}${card.value}`).join(','),
+          result: this.gameResult,
+          time: new Date().toLocaleString() // 添加时间戳
+        });
+      }
       
       // 更新本地投注历史
       this.betHistory = getBetHistory().filter(record => record.game === 'Baccarat');
@@ -786,6 +814,300 @@ export default {
       }
       
       return score % 10;
+    },
+    // 路子图相关方法
+    updateRoadmaps() {
+      // 添加当前游戏结果到结果数组
+      this.gameResults.push(this.gameResult);
+      
+      // 更新大路
+      this.updateBigRoad();
+      
+      // 更新派生路
+      this.updateDerivedRoads();
+      
+      // 保存路子图数据到本地存储
+      this.saveRoadmaps();
+    },
+    
+    updateBigRoad() {
+      // 初始化大路数组（如果为空）
+      if (this.bigRoad.length === 0) {
+        this.bigRoad = Array(6).fill().map(() => Array(12).fill(null));
+      }
+      
+      // 计算大路位置
+      let bigRoadTemp = Array(6).fill().map(() => Array(12).fill(null));
+      let col = 0;
+      let row = 0;
+      let lastResult = null;
+      let lastCol = -1;
+      
+      // 如果结果数组过长，只取最近的一部分结果
+      // 这个数字可以根据需要调整，确保能够显示足够的历史记录
+      const maxResults = 100;
+      const recentResults = this.gameResults.slice(-maxResults);
+      
+      for (let i = 0; i < recentResults.length; i++) {
+        const result = recentResults[i];
+        
+        // 跳过和局
+        if (result === 'tie') {
+          // 如果已经有记录，在最后一个位置标记和局
+          if (lastResult !== null) {
+            const cell = bigRoadTemp[row][col];
+            if (cell) {
+              cell.ties = (cell.ties || 0) + 1;
+            }
+          }
+          continue;
+        }
+        
+        // 第一个结果
+        if (lastResult === null) {
+          bigRoadTemp[0][0] = { result, ties: 0 };
+          lastResult = result;
+          lastCol = 0;
+          continue;
+        }
+        
+        // 如果结果与上一个相同，向下移动
+        if (result === lastResult) {
+          row++;
+          // 如果超出行数限制，移动到下一列的第一行
+          if (row >= 6) {
+            row = 0;
+            col = lastCol + 1;
+          }
+        } else {
+          // 如果结果不同，移动到下一列的第一行
+          row = 0;
+          col = lastCol + 1;
+          lastResult = result;
+        }
+        
+        // 如果超出列数限制，需要滚动显示
+        if (col >= 12) {
+          // 将所有列向左移动一列
+          for (let r = 0; r < 6; r++) {
+            for (let c = 0; c < 11; c++) {
+              bigRoadTemp[r][c] = bigRoadTemp[r][c + 1];
+            }
+            bigRoadTemp[r][11] = null;
+          }
+          
+          // 调整当前位置到最后一列
+          col = 11;
+        }
+        
+        bigRoadTemp[row][col] = { result, ties: 0 };
+        lastCol = col;
+      }
+      
+      // 更新大路数组
+      this.bigRoad = bigRoadTemp;
+    },
+    
+    updateDerivedRoads() {
+      // 根据大路生成派生路
+      this.generateBigEyeRoad();
+      this.generateSmallRoad();
+      this.generateCockroachRoad();
+    },
+    
+    generateBigEyeRoad() {
+      // 初始化大眼路数组
+      this.bigEyeRoad = Array(6).fill().map(() => Array(12).fill(null));
+      
+      // 根据大路规则生成大眼路
+      for (let col = 1; col < 12; col++) {
+        for (let row = 0; row < 6; row++) {
+          // 检查当前位置是否有值
+          if (this.bigRoad[row][col]) {
+            // 大眼路规则：比较当前列的前一列的下一行与再前一列的当前行
+            const currentCol = col;
+            const currentRow = row;
+            
+            // 检查是否可以应用规则
+            if (col >= 2) {
+              const value1 = this.bigRoad[currentRow][currentCol - 1];
+              const value2 = this.bigRoad[currentRow + 1] ? this.bigRoad[currentRow + 1][currentCol - 2] : null;
+              
+              if (value1 && value2) {
+                // 红圈：两个位置的结果相同
+                // 蓝圈：两个位置的结果不同
+                this.bigEyeRoad[row][col] = value1.result === value2.result ? 'red' : 'blue';
+              } else if (value1) {
+                // 如果只有第一个位置有值，使用红圈
+                this.bigEyeRoad[row][col] = 'red';
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    generateSmallRoad() {
+      // 初始化小路数组
+      this.smallRoad = Array(6).fill().map(() => Array(12).fill(null));
+      
+      // 根据大路规则生成小路
+      for (let col = 2; col < 12; col++) {
+        for (let row = 0; row < 6; row++) {
+          // 检查当前位置是否有值
+          if (this.bigRoad[row][col]) {
+            // 小路规则：比较当前列的前两列的下一行与再前一列的当前行
+            const currentCol = col;
+            const currentRow = row;
+            
+            // 检查是否可以应用规则
+            if (col >= 3) {
+              const value1 = this.bigRoad[currentRow][currentCol - 2];
+              const value2 = this.bigRoad[currentRow + 1] ? this.bigRoad[currentRow + 1][currentCol - 3] : null;
+              
+              if (value1 && value2) {
+                // 红圈：两个位置的结果相同
+                // 蓝圈：两个位置的结果不同
+                this.smallRoad[row][col] = value1.result === value2.result ? 'red' : 'blue';
+              } else if (value1) {
+                // 如果只有第一个位置有值，使用红圈
+                this.smallRoad[row][col] = 'red';
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    generateCockroachRoad() {
+      // 初始化蚂蚁路数组
+      this.cockroachRoad = Array(6).fill().map(() => Array(12).fill(null));
+      
+      // 根据大路规则生成蚂蚁路
+      for (let col = 3; col < 12; col++) {
+        for (let row = 0; row < 6; row++) {
+          // 检查当前位置是否有值
+          if (this.bigRoad[row][col]) {
+            // 蚂蚁路规则：比较当前列的前三列的下一行与再前一列的当前行
+            const currentCol = col;
+            const currentRow = row;
+            
+            // 检查是否可以应用规则
+            if (col >= 4) {
+              const value1 = this.bigRoad[currentRow][currentCol - 3];
+              const value2 = this.bigRoad[currentRow + 1] ? this.bigRoad[currentRow + 1][currentCol - 4] : null;
+              
+              if (value1 && value2) {
+                // 红圈：两个位置的结果相同
+                // 蓝圈：两个位置的结果不同
+                this.cockroachRoad[row][col] = value1.result === value2.result ? 'red' : 'blue';
+              } else if (value1) {
+                // 如果只有第一个位置有值，使用红圈
+                this.cockroachRoad[row][col] = 'red';
+              }
+            }
+          }
+        }
+      }
+    },
+    
+    saveRoadmaps() {
+      // 保存路子图数据到本地存储
+      localStorage.setItem('baccaratGameResults', JSON.stringify(this.gameResults));
+      localStorage.setItem('baccaratBigRoad', JSON.stringify(this.bigRoad));
+      localStorage.setItem('baccaratBigEyeRoad', JSON.stringify(this.bigEyeRoad));
+      localStorage.setItem('baccaratSmallRoad', JSON.stringify(this.smallRoad));
+      localStorage.setItem('baccaratCockroachRoad', JSON.stringify(this.cockroachRoad));
+      
+      // 更新最后访问时间
+      localStorage.setItem('baccaratLastVisitTime', new Date().getTime().toString());
+    },
+    
+    loadRoadmaps() {
+      // 从本地存储加载路子图数据
+      const gameResults = localStorage.getItem('baccaratGameResults');
+      const bigRoad = localStorage.getItem('baccaratBigRoad');
+      const bigEyeRoad = localStorage.getItem('baccaratBigEyeRoad');
+      const smallRoad = localStorage.getItem('baccaratSmallRoad');
+      const cockroachRoad = localStorage.getItem('baccaratCockroachRoad');
+      
+      // 检查是否需要重置路子图
+      const lastVisitTime = localStorage.getItem('baccaratLastVisitTime');
+      const currentTime = new Date().getTime();
+      
+      // 如果上次访问时间不存在或者距离现在超过一定时间（例如1小时），则重置路子图
+      if (!lastVisitTime || (currentTime - parseInt(lastVisitTime)) > 3600000) {
+        this.clearRoadmaps();
+      } else {
+        // 否则加载已有的路子图数据
+        if (gameResults) this.gameResults = JSON.parse(gameResults);
+        if (bigRoad) this.bigRoad = JSON.parse(bigRoad);
+        if (bigEyeRoad) this.bigEyeRoad = JSON.parse(bigEyeRoad);
+        if (smallRoad) this.smallRoad = JSON.parse(smallRoad);
+        if (cockroachRoad) this.cockroachRoad = JSON.parse(cockroachRoad);
+      }
+      
+      // 更新最后访问时间
+      localStorage.setItem('baccaratLastVisitTime', currentTime.toString());
+    },
+    
+    getCellClass(result) {
+      if (result === 'player') return 'player-cell';
+      if (result === 'banker') return 'banker-cell';
+      if (result === 'tie') return 'tie-cell';
+      return '';
+    },
+    
+    getBigRoadClass(row, col) {
+      const cell = this.bigRoad[row] && this.bigRoad[row][col];
+      if (!cell) return '';
+      
+      return cell.result === 'player' ? 'player-cell' : 'banker-cell';
+    },
+    
+    getBigRoadValue(row, col) {
+      const cell = this.bigRoad[row] && this.bigRoad[row][col];
+      if (!cell) return null;
+      
+      return cell.ties > 0 ? 'tie' : null;
+    },
+    
+    getDerivedRoadClass(roadType, row, col) {
+      let road;
+      switch (roadType) {
+        case 'bigEye':
+          road = this.bigEyeRoad;
+          break;
+        case 'small':
+          road = this.smallRoad;
+          break;
+        case 'cockroach':
+          road = this.cockroachRoad;
+          break;
+        default:
+          return '';
+      }
+      
+      const value = road[row] && road[row][col];
+      if (!value) return '';
+      
+      return value === 'red' ? 'red-circle' : 'blue-circle';
+    },
+    // 添加清空路子图数据的方法
+    clearRoadmaps() {
+      // 清空内存中的数据
+      this.gameResults = [];
+      this.bigRoad = Array(6).fill().map(() => Array(12).fill(null));
+      this.bigEyeRoad = Array(6).fill().map(() => Array(12).fill(null));
+      this.smallRoad = Array(6).fill().map(() => Array(12).fill(null));
+      this.cockroachRoad = Array(6).fill().map(() => Array(12).fill(null));
+      
+      // 清空本地存储中的数据
+      localStorage.removeItem('baccaratGameResults');
+      localStorage.removeItem('baccaratBigRoad');
+      localStorage.removeItem('baccaratBigEyeRoad');
+      localStorage.removeItem('baccaratSmallRoad');
+      localStorage.removeItem('baccaratCockroachRoad');
     }
   },
   mounted() {
@@ -804,12 +1126,18 @@ export default {
 
     // 初始化投注历史
     this.betHistory = getBetHistory().filter(record => record.game === 'Baccarat');
+    
+    // 加载路子图数据
+    this.loadRoadmaps();
   },
   beforeUnmount() {
     // 清除定时器
     if (this.countdownTimer) {
       clearInterval(this.countdownTimer);
     }
+    
+    // 清空路子图数据
+    this.clearRoadmaps();
   }
 }
 </script>
@@ -973,6 +1301,42 @@ h1 {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.roadmap-box {
+  width: 400px;
+  height: 150px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.roadmap-box h3 {
+  color: #00ff88;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+}
+
+.big-road {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.big-road table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.big-road td {
+  width: 25px;
+  height: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
 }
 
 .deck-count-box {
@@ -1893,6 +2257,48 @@ h1 {
   to {
     box-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
     transform: scale(1.05);
+  }
+}
+
+.player-cell {
+  background-color: #4a7aff;
+}
+
+.banker-cell {
+  background-color: #ff4444;
+}
+
+.tie-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #00ff88;
+}
+
+@media (max-width: 768px) {
+  .dealer-area {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .roadmap-box {
+    width: 100%;
+    max-width: 350px;
+    height: 120px;
+    margin: 0;
+  }
+  
+  .countdown-box, .deck-count-box {
+    margin: 0;
+    min-width: 120px;
+  }
+  
+  .big-road td {
+    width: 20px;
+    height: 15px;
   }
 }
 </style> 
