@@ -4,6 +4,12 @@
 
 (我不会写后端)
 
+
+
+预览：[casino](https://xzgame888.netlify.app/)
+
+
+
 包含游戏：
 
 - 龙虎斗
@@ -23,26 +29,30 @@
 
 登陆注册以及投注记录等各种信息使用本地会话存储
 
-
 ## 项目部署
+
 ```
 pnpm install
 ```
 
 ### 开发环境
+
 ```
 pnpm run serve
 ```
 
 ### 打包
+
 ```
 pnpm run build
 ```
 
 ### 代码格式化
+
 ```
 pnpm run lint
 ```
 
 ### 配置
+
 See [Configuration Reference](https://cli.vuejs.org/config/).
